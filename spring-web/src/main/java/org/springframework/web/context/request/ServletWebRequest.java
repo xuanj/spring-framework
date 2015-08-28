@@ -27,6 +27,7 @@ import javax.servlet.http.HttpSession;
 
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -54,6 +55,10 @@ public class ServletWebRequest extends ServletRequestAttributes implements Nativ
 
 	private static final String METHOD_HEAD = "HEAD";
 
+
+	/** Checking for Servlet 3.0+ HttpServletResponse.getStatus() */
+	private static final boolean responseGetStatusAvailable =
+			ClassUtils.hasMethod(HttpServletResponse.class, "getStatus");
 
 	private boolean notModified = false;
 
@@ -173,13 +178,13 @@ public class ServletWebRequest extends ServletRequestAttributes implements Nativ
 	public boolean checkNotModified(long lastModifiedTimestamp) {
 		HttpServletResponse response = getResponse();
 		if (lastModifiedTimestamp >= 0 && !this.notModified) {
-			if (response == null || HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
+			if (isCompatibleWithConditionalRequests(response)) {
 				this.notModified = isTimestampNotModified(lastModifiedTimestamp);
 				if (response != null) {
 					if (this.notModified && supportsNotModifiedStatus()) {
 						response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
 					}
-					if(response.getHeader(HEADER_LAST_MODIFIED) == null) {
+					if (response.getHeader(HEADER_LAST_MODIFIED) == null) {
 						response.setDateHeader(HEADER_LAST_MODIFIED, lastModifiedTimestamp);
 					}
 				}
@@ -215,20 +220,28 @@ public class ServletWebRequest extends ServletRequestAttributes implements Nativ
 	public boolean checkNotModified(String etag) {
 		HttpServletResponse response = getResponse();
 		if (StringUtils.hasLength(etag) && !this.notModified) {
-			if (response == null || HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
+			if (isCompatibleWithConditionalRequests(response)) {
 				etag = addEtagPadding(etag);
 				this.notModified = isETagNotModified(etag);
 				if (response != null) {
 					if (this.notModified && supportsNotModifiedStatus()) {
 						response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
 					}
-					if(response.getHeader(HEADER_ETAG) == null) {
+					if (response.getHeader(HEADER_ETAG) == null) {
 						response.setHeader(HEADER_ETAG, etag);
 					}
 				}
 			}
 		}
 		return this.notModified;
+	}
+
+	private boolean isCompatibleWithConditionalRequests(HttpServletResponse response) {
+		if (response == null || !responseGetStatusAvailable) {
+			// Can't check response.getStatus() - let's assume we're good
+			return true;
+		}
+		return HttpStatus.valueOf(response.getStatus()).is2xxSuccessful();
 	}
 
 	private String addEtagPadding(String etag) {
@@ -265,17 +278,17 @@ public class ServletWebRequest extends ServletRequestAttributes implements Nativ
 	public boolean checkNotModified(String etag, long lastModifiedTimestamp) {
 		HttpServletResponse response = getResponse();
 		if (StringUtils.hasLength(etag) && !this.notModified) {
-			if (response == null || HttpStatus.valueOf(response.getStatus()).is2xxSuccessful()) {
+			if (isCompatibleWithConditionalRequests(response)) {
 				etag = addEtagPadding(etag);
 				this.notModified = isETagNotModified(etag) && isTimestampNotModified(lastModifiedTimestamp);
 				if (response != null) {
 					if (this.notModified && supportsNotModifiedStatus()) {
 						response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
 					}
-					if(response.getHeader(HEADER_ETAG) == null) {
+					if (response.getHeader(HEADER_ETAG) == null) {
 						response.setHeader(HEADER_ETAG, etag);
 					}
-					if(response.getHeader(HEADER_LAST_MODIFIED) == null) {
+					if (response.getHeader(HEADER_LAST_MODIFIED) == null) {
 						response.setDateHeader(HEADER_LAST_MODIFIED, lastModifiedTimestamp);
 					}
 				}
