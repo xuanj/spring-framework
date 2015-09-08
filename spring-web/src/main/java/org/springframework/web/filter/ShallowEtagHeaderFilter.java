@@ -58,11 +58,12 @@ public class ShallowEtagHeaderFilter extends OncePerRequestFilter {
 
 	private static final String DIRECTIVE_NO_STORE = "no-store";
 
-	/** Checking for Servlet 3.0+ HttpServletResponse.getHeader(String) */
-	private static final boolean responseGetHeaderAvailable =
-			ClassUtils.hasMethod(HttpServletResponse.class, "getHeader", String.class);
-
 	private static final String STREAMING_ATTRIBUTE = ShallowEtagHeaderFilter.class.getName() + ".STREAMING";
+
+
+	/** Checking for Servlet 3.0+ HttpServletResponse.getHeader(String) */
+	private static final boolean servlet3Present =
+			ClassUtils.hasMethod(HttpServletResponse.class, "getHeader", String.class);
 
 
 	/**
@@ -144,7 +145,10 @@ public class ShallowEtagHeaderFilter extends OncePerRequestFilter {
 			int responseStatusCode, InputStream inputStream) {
 
 		if (responseStatusCode >= 200 && responseStatusCode < 300 && HttpMethod.GET.name().equals(request.getMethod())) {
-			String cacheControl = (responseGetHeaderAvailable ? response.getHeader(HEADER_CACHE_CONTROL) : null);
+			String cacheControl = null;
+			if (servlet3Present) {
+				cacheControl = response.getHeader(HEADER_CACHE_CONTROL);
+			}
 			if (cacheControl == null || !cacheControl.contains(DIRECTIVE_NO_STORE)) {
 				return true;
 			}
@@ -159,14 +163,9 @@ public class ShallowEtagHeaderFilter extends OncePerRequestFilter {
 	 * @return the ETag header value
 	 * @see org.springframework.util.DigestUtils
 	 */
-	protected String generateETagHeaderValue(InputStream inputStream) {
+	protected String generateETagHeaderValue(InputStream inputStream) throws IOException {
 		StringBuilder builder = new StringBuilder("\"0");
-		try {
-			DigestUtils.appendMd5DigestAsHex(inputStream, builder);
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		DigestUtils.appendMd5DigestAsHex(inputStream, builder);
 		builder.append('"');
 		return builder.toString();
 	}
@@ -180,7 +179,7 @@ public class ShallowEtagHeaderFilter extends OncePerRequestFilter {
 	 * @since 4.2
 	 */
 	public static void disableContentCaching(ServletRequest request) {
-		Assert.notNull(request);
+		Assert.notNull(request, "ServletRequest must not be null");
 		request.setAttribute(STREAMING_ATTRIBUTE, true);
 	}
 
