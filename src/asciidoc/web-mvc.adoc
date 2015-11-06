@@ -635,8 +635,8 @@ controller. When this is the case, for controllers specifically, we recommend
 using class-based proxying. This is typically the default choice with controllers.
 However if a controller must implement an interface that is not a Spring Context
 callback (e.g. `InitializingBean`, `*Aware`, etc), you may need to explicitly
-configure class-based proxying. For example with `<tx:annotation-driven />`,
-change to `<tx:annotation-driven proxy-target-class="true" />`.
+configure class-based proxying. For example with `<tx:annotation-driven/>`,
+change to `<tx:annotation-driven proxy-target-class="true"/>`.
 
 [[mvc-ann-requestmapping-31-vs-30]]
 ==== New Support Classes for @RequestMapping methods in Spring MVC 3.1
@@ -846,21 +846,75 @@ configuration. For more information on placeholders, see the javadocs of the
 
 
 [[mvc-ann-requestmapping-suffix-pattern-match]]
-==== Path Pattern Matching By Suffix
-By default Spring MVC automatically performs `".{asterisk}"` suffix pattern matching so
-that a controller mapped to `/person` is also implicitly mapped to `/person.{asterisk}`.
-This allows indicating content types via file extensions, e.g. `/person.pdf`,
-`/person.xml`, etc. A common pitfall however is when the last path segment of the
-mapping is a URI variable, e.g. `/person/{id}`. While a request for `/person/1.json`
-would correctly result in path variable id=1 and extension ".json", when the id
-naturally contains a dot, e.g. `/person/joe@email.com` the result does not match
-expectations. Clearly here ".com" is not a file extension.
+==== Suffix Pattern Matching
+By default Spring MVC performs `".{asterisk}"` suffix pattern matching so that a
+controller mapped to `/person` is also implicitly mapped to `/person.{asterisk}`.
+This makes it easy to request different representations of a resource through the
+URL path (e.g. `/person.pdf`, `/person.xml`).
 
-The proper way to address this is to configure Spring MVC to only do suffix pattern
-matching against file extensions registered for content negotiation purposes.
-For more on this, first see <<mvc-config-content-negotiation>> and then
-<<mvc-config-path-matching>> showing how to enable suffix pattern matching
-along with how to use registered suffix patterns only.
+Suffix pattern matching can be turned off or restricted to a set of path extensions
+explicitly registered for content negotiation purposes. This is generally
+recommended to minimize ambiguity with common request mappings such as
+`/person/{id}` where a dot might not represent a file extension, e.g.
+`/person/joe@email.com` vs `/person/joe@email.com.json`. Furthermore as explained
+in the note below suffix pattern matching as well as content negotiation may be
+used in some circumstances to attempt malicious attacks and there are good
+reasons to restrict them meaningfully.
+
+See <<mvc-config-path-matching>> for suffix pattern matching configuration and
+also <<mvc-config-content-negotiation>> for content negotiation configuration.
+
+
+
+[[mvc-ann-requestmapping-rfd]]
+==== Suffix Suffix Pattern Matching and RFD
+
+Reflected file download (RFD) attack was first described in a
+https://www.trustwave.com/Resources/SpiderLabs-Blog/Reflected-File-Download---A-New-Web-Attack-Vector/[paper by Trustwave]
+in 2014. The attack is similar to XSS in that it relies on input
+(e.g. query parameter, URI variable) being reflected in the response.
+However instead of inserting JavaScript into HTML, an RFD attack relies on the
+browser switching to perform a download and treating the response as an executable
+script if double-clicked based on the file extension (e.g. .bat, .cmd).
+
+In Spring MVC `@ResponseBody` and `ResponseEntity` methods are at risk because
+they can render different content types which clients can request including
+via URL path extensions. Note however that neither disabling suffix pattern matching
+nor disabling the use of path extensions for content negotiation purposes alone
+are effective at preventing RFD attacks.
+
+For comprehensive protection against RFD, prior to rendering the response body
+Spring MVC adds a `Content-Disposition:attachment;filename=f.txt` header to
+suggest a fixed and safe download file filename. This is done only if the URL
+path contains a file extension that is neither whitelisted nor explicitly
+registered for content negotiation purposes. However it may potentially have
+side effects when URLs are typed directly into a browser.
+
+Many common path extensions are whitelisted by
+default. Furthermore REST API calls are typically not meant to be used as URLs
+directly in browsers. Nevertheless applications that use custom
+`HttpMessageConverter` implementations can explicitly register file extensions
+for content negotiation and the Content-Disposition header will not be added
+for such extensions. See <<mvc-config-content-negotiation>>.
+
+[NOTE]
+====
+This was originally introduced as part of work for
+http://pivotal.io/security/cve-2015-5211[CVE-2015-5211].
+Below are additional recommendations from the report:
+
+* Encode rather than escape JSON responses. This is also an OWASP XSS recommendation.
+  For an example of how to do that with Spring see https://github.com/rwinch/spring-jackson-owasp[spring-jackson-owasp].
+* Configure suffix pattern matching to be turned off or restricted to explicitly
+  registered suffixes only.
+* Configure content negotiation with the properties “useJaf” and “ignoreUknownPathExtension”
+  set to false which would result in a 406 response for URLs with unknown extensions.
+  Note however that this may not be an option if URLs are naturally expected to have
+  a dot towards the end.
+* Add `X-Content-Type-Options: nosniff` header to responses. Spring Security 4 does
+  this by default.
+====
+
 
 
 
@@ -1028,12 +1082,20 @@ condition. For example:
 [subs="verbatim,quotes"]
 ----
 	@Controller
-	@RequestMapping(path = "/pets/{petId}", method = RequestMethod.GET, **produces="application/json"**)
+	@RequestMapping(path = "/pets/{petId}", method = RequestMethod.GET, **produces = MediaType.APPLICATION_JSON_UTF8_VALUE**)
 	@ResponseBody
 	public Pet getPet(@PathVariable String petId, Model model) {
 		// implementation omitted
 	}
 ----
+
+[NOTE]
+====
+Be aware that the media type specified in the __produces__ condition can also optionally
+specify a character set. For example, in the code snippet above we specify the same media
+type than the default one configured in `MappingJackson2HttpMessageConverter`, including
+the `UTF-8` charset.
+====
 
 Just like with __consumes__, producible media type expressions can be negated as in
 __!text/plain__ to match to all requests other than those with an __Accept__ header
@@ -1368,8 +1430,8 @@ the MVC namespace or the MVC Java config see <<mvc-config-enable>> instead.
 
 	<bean id="marshallingHttpMessageConverter"
 			class="org.springframework.http.converter.xml.MarshallingHttpMessageConverter">
-		<property name="marshaller" ref="castorMarshaller" />
-		<property name="unmarshaller" ref="castorMarshaller" />
+		<property name="marshaller" ref="castorMarshaller"/>
+		<property name="unmarshaller" ref="castorMarshaller"/>
 	</bean>
 
 	<bean id="castorMarshaller" class="org.springframework.oxm.castor.CastorMarshaller"/>
@@ -1425,7 +1487,7 @@ JSON, XML or custom MediaType content. For convenience, instead of annotating al
 `@RequestMapping` methods with `@ResponseBody`, you can annotate your Controller Class
 with `@RestController`.
 
-{javadoc-baseurl}/org/springframework/web/bind/annotation/RestController.html[`@RestController`]
+{api-spring-framework}/web/bind/annotation/RestController.html[`@RestController`]
 is a stereotype annotation that combines `@ResponseBody` and `@Controller`. More than
 that, it gives more meaning to your Controller and also may carry additional semantics
 in future releases of the framework.
@@ -1897,9 +1959,9 @@ PropertyEditors required by several of the PetClinic controllers.
 [subs="verbatim,quotes"]
 ----
 	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
-		<property name="cacheSeconds" value="0" />
+		<property name="cacheSeconds" value="0"/>
 		<property name="webBindingInitializer">
-			<bean class="org.springframework.samples.petclinic.web.ClinicBindingInitializer" />
+			<bean class="org.springframework.samples.petclinic.web.ClinicBindingInitializer"/>
 		</property>
 	</bean>
 ----
@@ -1941,7 +2003,7 @@ attributes:
 ----
 
 Check out the
-{javadoc-baseurl}/org/springframework/web/bind/annotation/ControllerAdvice.html[`@ControllerAdvice`
+{api-spring-framework}/web/bind/annotation/ControllerAdvice.html[`@ControllerAdvice`
 documentation] for more details.
 
 [[mvc-ann-jsonview]]
@@ -2789,6 +2851,9 @@ name such as `redirect:/myapp/some/resource` will redirect relative to the curre
 Servlet context, while a name such as `redirect:http://myhost.com/some/arbitrary/path`
 will redirect to an absolute URL.
 
+Note that the controller handler is annotated with the `@ResponseStatus`, the annotation
+value takes precedence over the response status set by `RedirectView`.
+
 
 [[mvc-redirecting-forward-prefix]]
 ==== The forward: prefix
@@ -3283,7 +3348,14 @@ maximum age. Find below an example of defining a `CookieLocaleResolver`.
 === SessionLocaleResolver
 
 The `SessionLocaleResolver` allows you to retrieve `Locale` and `TimeZone` from the
-session that might be associated with the user's request.
+session that might be associated with the user's request. In contrast to
+`CookieLocaleResolver`, this strategy stores locally chosen locale settings in the
+Servlet container's `HttpSession`. As a consequence, those settings are just temporary
+for each session and therefore lost when each session terminates.
+
+Note that there is no direct relationship with external session management mechanisms
+such as the Spring Session project. This `SessionLocaleResolver` will simply evaluate and
+modify corresponding `HttpSession` attributes against the current `HttpServletRequest`.
 
 
 
@@ -3772,6 +3844,12 @@ corresponding status codes:
 
 | `TypeMismatchException`
 | 400 (Bad Request)
+
+| `MissingPathVariableException`
+| 500 (Internal Server Error)
+
+| `NoHandlerFoundException`
+| 404 (Not Found)
 |===
 
 The `DefaultHandlerExceptionResolver` works transparently by setting the status of the
@@ -3831,7 +3909,7 @@ When writing error information, the status code and the error message set on the
 	@Controller
 	public class ErrorController {
 
-		@RequestMapping(path="/error", produces="application/json")
+		@RequestMapping(path = "/error", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
 		@ResponseBody
 		public Map<String, Object> handle(HttpServletRequest request) {
 
@@ -3863,9 +3941,9 @@ or in a JSP:
 
 The http://projects.spring.io/spring-security/[Spring Security] project provides features
 to protect web applications from malicious exploits. Check out the reference documentation in the sections on
-http://docs.spring.io/spring-security/site/docs/current/reference/htmlsingle/#csrf["CSRF protection"],
-http://docs.spring.io/spring-security/site/docs/current/reference/htmlsingle/#headers["Security Response Headers"], and also
-http://docs.spring.io/spring-security/site/docs/current/reference/htmlsingle/#mvc["Spring MVC Integration"].
+{doc-spring-security}/htmlsingle/#csrf["CSRF protection"],
+{doc-spring-security}/htmlsingle/#headers["Security Response Headers"], and also
+{doc-spring-security}/htmlsingle/#mvc["Spring MVC Integration"].
 Note that using Spring Security to secure the application is not necessarily required for all features.
 For example CSRF protection can be added simply by adding the `CsrfFilter` and
 `CsrfRequestDataValueProcessor` to your configuration. See the
@@ -4152,7 +4230,7 @@ Spring Web MVC uses a configuration convention in several of its APIs:
 * An `n > 0` value will cache the given response for `n` seconds using the
 `'Cache-Control: max-age=n'` directive.
 
-The {javadoc-baseurl}/org/springframework/http/CacheControl.html[`CacheControl`] builder
+The {api-spring-framework}/http/CacheControl.html[`CacheControl`] builder
 class simply describes the available "Cache-Control" directives and makes it easier to
 build your own HTTP caching strategy. Once built, a `CacheControl` instance can then be
 accepted as an argument in several Spring Web MVC APIs.
@@ -4509,7 +4587,7 @@ context defined):
 			http://www.springframework.org/schema/mvc
 			http://www.springframework.org/schema/mvc/spring-mvc.xsd">
 
-		<mvc:annotation-driven />
+		<mvc:annotation-driven/>
 
 	</beans>
 ----
@@ -4525,11 +4603,11 @@ It also enables the following:
 in addition to the JavaBeans PropertyEditors used for Data Binding.
 . Support for <<format,formatting>> Number fields using the `@NumberFormat` annotation
 through the `ConversionService`.
-. Support for <<format,formatting>> Date, Calendar, Long, and Joda Time fields using the
+. Support for <<format,formatting>> `Date`, `Calendar`, `Long`, and Joda Time fields using the
 `@DateTimeFormat` annotation.
-. Support for <<validation-mvc-jsr303,validating>> `@Controller` inputs with `@Valid`, if
+. Support for <<mvc-config-validation,validating>> `@Controller` inputs with `@Valid`, if
 a JSR-303 Provider is present on the classpath.
-. HttpMessageConverter support for `@RequestBody` method parameters and `@ResponseBody`
+. `HttpMessageConverter` support for `@RequestBody` method parameters and `@ResponseBody`
 method return values from `@RequestMapping` or `@ExceptionHandler` methods.
 
 +
@@ -4563,7 +4641,7 @@ default converters.
 [NOTE]
 ====
 Jackson JSON and XML converters are created using `ObjectMapper` instances created by
-{javadoc-baseurl}/org/springframework/http/converter/json/Jackson2ObjectMapperBuilder.html[`Jackson2ObjectMapperBuilder`]
+{api-spring-framework}/http/converter/json/Jackson2ObjectMapperBuilder.html[`Jackson2ObjectMapperBuilder`]
 in order to provide a better default configuration.
 
 This builder customizes Jackson's default properties with the following ones:
@@ -4599,7 +4677,7 @@ and override the methods you need:
 	}
 ----
 
-To customize the default configuration of `<mvc:annotation-driven />` check what
+To customize the default configuration of `<mvc:annotation-driven/>` check what
 attributes and sub-elements it supports. You can view the
 http://schema.spring.io/mvc/spring-mvc.xsd[Spring MVC XML schema] or use the code
 completion feature of your IDE to discover what attributes and sub-elements are
@@ -4692,7 +4770,7 @@ plugged into Spring MVC as a global validator as described next.
 
 By default use of `@EnableWebMvc` or `<mvc:annotation-driven>` automatically registers Bean
 Validation support in Spring MVC through the `LocalValidatorFactoryBean` when a Bean Validation
-provider is such as Hibernate Validator is detected on the classpath.
+provider such as Hibernate Validator is detected on the classpath.
 
 [NOTE]
 ====
@@ -4759,7 +4837,7 @@ To combine global with local validation, simply add one or more local validator(
 	}
 ----
 
-With this minimal configuration anytime an `@Valid` or `@Validated` method argument is encountered, it
+With this minimal configuration any time an `@Valid` or `@Validated` method argument is encountered, it
 will be validated by the configured validators. Any validation violations will automatically
 be exposed as errors in the `BindingResult` accessible as a method argument and also renderable
 in Spring MVC HTML views.
@@ -4796,15 +4874,15 @@ And in XML use the `<mvc:interceptors>` element:
 [subs="verbatim"]
 ----
 	<mvc:interceptors>
-		<bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" />
+		<bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"/>
 		<mvc:interceptor>
 			<mvc:mapping path="/**"/>
 			<mvc:exclude-mapping path="/admin/**"/>
-			<bean class="org.springframework.web.servlet.theme.ThemeChangeInterceptor" />
+			<bean class="org.springframework.web.servlet.theme.ThemeChangeInterceptor"/>
 		</mvc:interceptor>
 		<mvc:interceptor>
 			<mvc:mapping path="/secure/*"/>
-			<bean class="org.example.SecurityInterceptor" />
+			<bean class="org.example.SecurityInterceptor"/>
 		</mvc:interceptor>
 	</mvc:interceptors>
 ----
@@ -4813,26 +4891,19 @@ And in XML use the `<mvc:interceptors>` element:
 
 [[mvc-config-content-negotiation]]
 === Content Negotiation
-You can configure how Spring MVC determines the requested media types from the client
-for request mapping as well as for content negotiation purposes. The available options
-are to check the file extension in the request URI, the "Accept" header, a request
-parameter, as well as to fall back on a default content type. By default, file extension
-in the request URI is checked first and the "Accept" header is checked next.
+You can configure how Spring MVC determines the requested media types from the request.
+The available options are to check the URL path for a file extension, check the
+"Accept" header, a specific query parameter, or to fall back on a default content
+type when nothing is requested. By default the path extension in the request URI
+is checked first and the "Accept" header is checked second.
 
-For file extensions in the request URI, the MVC Java config and the MVC namespace,
-automatically register extensions such as `.json`, `.xml`, `.rss`, and `.atom` if the
-corresponding dependencies such as Jackson, JAXB2, or Rome are present on the classpath.
-Additional extensions may be not need to be registered explicitly if they can be
-discovered via `ServletContext.getMimeType(String)` or the __Java Activation Framework__
-(see `javax.activation.MimetypesFileTypeMap`). You can register more extensions with the
-{javadoc-baseurl}/org/springframework/web/servlet/mvc/method/annotation/RequestMappingHandlerMapping.html#setUseRegisteredSuffixPatternMatch(boolean)[setUseRegisteredSuffixPatternMatch
-method].
+The MVC Java config and the MVC namespace register `json`, `xml`, `rss`, `atom` by
+default if corresponding dependencies are on the classpath. Additional
+path extension-to-media type mappings may also be registered explicitly and that
+also has the effect of whitelisting them as safe extensions for the purpose of RFD
+attack detection (see <<mvc-ann-requestmapping-rfd>> for more detail).
 
-The introduction of `ContentNegotiationManager` also enables selective suffix pattern
-matching for incoming requests. For more details, see its javadocs.
-
-Below is an example of customizing content negotiation options through the MVC Java
-config:
+Below is an example of customizing content negotiation options through the MVC Java config:
 
 [source,java,indent=0]
 [subs="verbatim,quotes"]
@@ -4843,7 +4914,7 @@ config:
 
 		@Override
 		public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
-			configurer.favorPathExtension(false).favorParameter(true);
+			configurer.mediaType("json", MediaType.APPLICATION_JSON);
 		}
 	}
 ----
@@ -4855,11 +4926,9 @@ that in turn can be created with a `ContentNegotiationManagerFactoryBean`:
 [source,xml,indent=0]
 [subs="verbatim,quotes"]
 ----
-	<mvc:annotation-driven content-negotiation-manager="contentNegotiationManager" />
+	<mvc:annotation-driven content-negotiation-manager="contentNegotiationManager"/>
 
 	<bean id="contentNegotiationManager" class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
-		<property name="favorPathExtension" value="false"/>
-		<property name="favorParameter" value="true"/>
 		<property name="mediaTypes">
 			<value>
 				json=application/json
@@ -4951,10 +5020,10 @@ And the same in XML:
 	<mvc:view-resolvers>
 		<mvc:content-negotiation>
 			<mvc:default-views>
-				<bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView" />
+				<bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView"/>
 			</mvc:default-views>
 		</mvc:content-negotiation>
-		<mvc:jsp />
+		<mvc:jsp/>
 	</mvc:view-resolvers>
 ----
 
@@ -4970,14 +5039,14 @@ The MVC namespace provides dedicated elements. For example with FreeMarker:
 	<mvc:view-resolvers>
 		<mvc:content-negotiation>
 			<mvc:default-views>
-				<bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView" />
+				<bean class="org.springframework.web.servlet.view.json.MappingJackson2JsonView"/>
 			</mvc:default-views>
 		</mvc:content-negotiation>
-		<mvc:freemarker cache="false" />
+		<mvc:freemarker cache="false"/>
 	</mvc:view-resolvers>
 
 	<mvc:freemarker-configurer>
-		<mvc:template-loader-path location="/freemarker" />
+		<mvc:template-loader-path location="/freemarker"/>
 	</mvc:freemarker-configurer>
 
 ----
@@ -5155,7 +5224,7 @@ XML example:
 ----
 <mvc:resources mapping="/resources/**" location="/public-resources/">
 	<mvc:resource-chain>
-		<mvc:resource-cache />
+		<mvc:resource-cache/>
 		<mvc:resolvers>
 			<mvc:version-resolver>
 				<mvc:content-version-strategy patterns="/**"/>
@@ -5258,7 +5327,7 @@ Or in XML:
 === Path Matching
 This allows customizing various settings related to URL mapping and path matching.
 For details on the individual options check out the
-{javadoc-baseurl}/org/springframework/web/servlet/config/annotation/PathMatchConfigurer.html[PathMatchConfigurer] API.
+{api-spring-framework}/web/servlet/config/annotation/PathMatchConfigurer.html[PathMatchConfigurer] API.
 
 Below is an example in Java config:
 
@@ -5303,11 +5372,11 @@ And the same in XML, use the `<mvc:path-matching>` element:
             trailing-slash="false"
             registered-suffixes-only="true"
             path-helper="pathHelper"
-            path-matcher="pathMatcher" />
+            path-matcher="pathMatcher"/>
     </mvc:annotation-driven>
 
-    <bean id="pathHelper" class="org.example.app.MyPathHelper" />
-    <bean id="pathMatcher" class="org.example.app.MyPathMatcher" />
+    <bean id="pathHelper" class="org.example.app.MyPathHelper"/>
+    <bean id="pathMatcher" class="org.example.app.MyPathMatcher"/>
 ----
 
 
@@ -5316,9 +5385,9 @@ And the same in XML, use the `<mvc:path-matching>` element:
 === Message Converters
 
 Customization of `HttpMessageConverter` can be achieved in Java config by overriding
-{javadoc-baseurl}/org/springframework/web/servlet/config/annotation/WebMvcConfigurerAdapter.html#configureMessageConverters-java.util.List-[`configureMessageConverters()`]
+{api-spring-framework}/web/servlet/config/annotation/WebMvcConfigurerAdapter.html#configureMessageConverters-java.util.List-[`configureMessageConverters()`]
 if you want to replace the default converters created by Spring MVC, or by overriding
-{javadoc-baseurl}/org/springframework/web/servlet/config/annotation/WebMvcConfigurerAdapter.html#extendMessageConverters-java.util.List-[`extendMessageConverters()`]
+{api-spring-framework}/web/servlet/config/annotation/WebMvcConfigurerAdapter.html#extendMessageConverters-java.util.List-[`extendMessageConverters()`]
 if you just want to customize them or add additional converters to the default ones.
 
 Below is an example that adds Jackson JSON and XML converters with a customized
@@ -5370,10 +5439,10 @@ It is also possible to do the same in XML:
     <mvc:annotation-driven>
         <mvc:message-converters>
             <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
-                <property name="objectMapper" ref="objectMapper" />
+                <property name="objectMapper" ref="objectMapper"/>
             </bean>
             <bean class="org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter">
-                <property name="objectMapper" ref="xmlMapper" />
+                <property name="objectMapper" ref="xmlMapper"/>
             </bean>
         </mvc:message-converters>
     </mvc:annotation-driven>
@@ -5381,9 +5450,9 @@ It is also possible to do the same in XML:
     <bean id="objectMapper" class="org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean"
           p:indentOutput="true"
           p:simpleDateFormat="yyyy-MM-dd"
-          p:modulesToInstall="com.fasterxml.jackson.module.paramnames.ParameterNamesModule" />
+          p:modulesToInstall="com.fasterxml.jackson.module.paramnames.ParameterNamesModule"/>
 
-    <bean id="xmlMapper" parent="objectMapper" p:createXmlMapper="true" />
+    <bean id="xmlMapper" parent="objectMapper" p:createXmlMapper="true"/>
 ----
 
 
@@ -5467,6 +5536,6 @@ by type and then modifying its properties as necessary. For example:
 	}
 ----
 
-Note that `MyPostProcessor` needs to be included in an `<component scan />` in order for
+Note that `MyPostProcessor` needs to be included in an `<component scan/>` in order for
 it to be detected or if you prefer you can declare it explicitly with an XML bean
 declaration.

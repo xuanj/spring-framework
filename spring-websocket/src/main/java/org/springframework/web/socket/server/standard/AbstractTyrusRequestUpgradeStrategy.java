@@ -21,7 +21,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import javax.servlet.ServletException;
@@ -53,12 +53,16 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketExtension;
 import org.springframework.web.socket.server.HandshakeFailureException;
 
+import static org.glassfish.tyrus.spi.WebSocketEngine.UpgradeStatus.SUCCESS;
+
 /**
- * An base class for WebSocket servers using Tyrus.
+ * A base class for {@code RequestUpgradeStrategy} implementations on top of
+ * JSR-356 based servers which include Tyrus as their WebSocket engine.
  *
- * <p>Works with Tyrus 1.3.5 (WebLogic 12.1.3) and Tyrus 1.7 (GlassFish 4.0.1).
+ * <p>Works with Tyrus 1.3.5 (WebLogic 12.1.3) and Tyrus 1.7+ (GlassFish 4.1.x).
  *
  * @author Rossen Stoyanchev
+ * @author Brian Clozel
  * @since 4.1
  * @see <a href="https://tyrus.java.net/">Project Tyrus</a>
  */
@@ -94,6 +98,7 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 		TyrusServerContainer serverContainer = (TyrusServerContainer) getContainer(servletRequest);
 		TyrusWebSocketEngine engine = (TyrusWebSocketEngine) serverContainer.getWebSocketEngine();
 		Object tyrusEndpoint = null;
+		boolean success;
 
 		try {
 			// Shouldn't matter for processing but must be unique
@@ -105,29 +110,22 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 			RequestContext requestContext = createRequestContext(servletRequest, path, headers);
 			TyrusUpgradeResponse upgradeResponse = new TyrusUpgradeResponse();
 			UpgradeInfo upgradeInfo = engine.upgrade(requestContext, upgradeResponse);
-
-			switch (upgradeInfo.getStatus()) {
-				case SUCCESS:
-					if (logger.isTraceEnabled()) {
-						logger.trace("Successful upgrade: " + upgradeResponse.getHeaders());
-					}
-					handleSuccess(servletRequest, servletResponse, upgradeInfo, upgradeResponse);
-					break;
-				case HANDSHAKE_FAILED:
-					// Should never happen
-					throw new HandshakeFailureException("Unexpected handshake failure: " + request.getURI());
-				case NOT_APPLICABLE:
-					// Should never happen
-					throw new HandshakeFailureException("Unexpected handshake mapping failure: " + request.getURI());
+			success = SUCCESS.equals(upgradeInfo.getStatus());
+			if (success) {
+				if (logger.isTraceEnabled()) {
+					logger.trace("Successful upgrade: " + upgradeResponse.getHeaders());
+				}
+				handleSuccess(servletRequest, servletResponse, upgradeInfo, upgradeResponse);
 			}
 		}
 		catch (Exception ex) {
+			unregisterTyrusEndpoint(engine, tyrusEndpoint);
 			throw new HandshakeFailureException("Error during handshake: " + request.getURI(), ex);
 		}
-		finally {
-			if (tyrusEndpoint != null) {
-				getEndpointHelper().unregister(engine, tyrusEndpoint);
-			}
+
+		unregisterTyrusEndpoint(engine, tyrusEndpoint);
+		if (!success) {
+			throw new HandshakeFailureException("Unexpected handshake failure: " + request.getURI());
 		}
 	}
 
@@ -136,7 +134,7 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 			throws DeploymentException {
 
 		ServerEndpointRegistration endpointConfig = new ServerEndpointRegistration(endpointPath, endpoint);
-		endpointConfig.setSubprotocols(Arrays.asList(protocol));
+		endpointConfig.setSubprotocols(Collections.singletonList(protocol));
 		endpointConfig.setExtensions(extensions);
 		return getEndpointHelper().createdEndpoint(endpointConfig, this.componentProvider, container, engine);
 	}
@@ -155,6 +153,16 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 		return context;
 	}
 
+	private void unregisterTyrusEndpoint(TyrusWebSocketEngine engine, Object tyrusEndpoint) {
+		if (tyrusEndpoint != null) {
+			try {
+				getEndpointHelper().unregister(engine, tyrusEndpoint);
+			}
+			catch (Throwable ex) {
+				// ignore
+			}
+		}
+	}
 
 	protected abstract TyrusEndpointHelper getEndpointHelper();
 
@@ -180,6 +188,8 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 
 		private static final Constructor<?> constructor;
 
+		private static boolean constructorWithBooleanArgument;
+
 		private static final Method registerMethod;
 
 		private static final Method unRegisterMethod;
@@ -187,6 +197,11 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 		static {
 			try {
 				constructor = getEndpointConstructor();
+				int parameterCount = constructor.getParameterTypes().length;
+				constructorWithBooleanArgument = (parameterCount == 10);
+				if (!constructorWithBooleanArgument && parameterCount != 9) {
+					throw new IllegalStateException("Expected TyrusEndpointWrapper constructor with 9 or 10 arguments");
+				}
 				registerMethod = TyrusWebSocketEngine.class.getDeclaredMethod("register", TyrusEndpointWrapper.class);
 				unRegisterMethod = TyrusWebSocketEngine.class.getDeclaredMethod("unregister", TyrusEndpointWrapper.class);
 				ReflectionUtils.makeAccessible(registerMethod);
@@ -215,8 +230,14 @@ public abstract class AbstractTyrusRequestUpgradeStrategy extends AbstractStanda
 			Object sessionListener = accessor.getPropertyValue("sessionListener");
 			Object clusterContext = accessor.getPropertyValue("clusterContext");
 			try {
-				return constructor.newInstance(registration.getEndpoint(), registration, provider, container,
-						"/",  registration.getConfigurator(), sessionListener, clusterContext, null);
+				if (constructorWithBooleanArgument) {
+					return constructor.newInstance(registration.getEndpoint(), registration, provider, container,
+							"/", registration.getConfigurator(), sessionListener, clusterContext, null, Boolean.TRUE);
+				}
+				else {
+					return constructor.newInstance(registration.getEndpoint(), registration, provider, container,
+							"/", registration.getConfigurator(), sessionListener, clusterContext, null);
+				}
 			}
 			catch (Exception ex) {
 				throw new HandshakeFailureException("Failed to register " + registration, ex);

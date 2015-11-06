@@ -106,18 +106,27 @@ public class AspectProxyFactoryTests {
 	}
 
 	@Test  // SPR-13328
-	public void testVarargsWithEnumArray() throws Exception {
+	public void testProxiedVarargsWithEnumArray() throws Exception {
 		AspectJProxyFactory proxyFactory = new AspectJProxyFactory(new TestBean());
-		proxyFactory.addAspect(LoggingAspect.class);
-		proxyFactory.setProxyTargetClass(true);
-		TestBean proxy = proxyFactory.getProxy();
-		assertTrue(proxy.doWithVarargs(MyEnum.A, MyEnum.B));
+		proxyFactory.addAspect(LoggingAspectOnVarargs.class);
+		ITestBean proxy = proxyFactory.getProxy();
+		assertTrue(proxy.doWithVarargs(MyEnum.A, MyOtherEnum.C));
+	}
+
+	@Test  // SPR-13328
+	public void testUnproxiedVarargsWithEnumArray() throws Exception {
+		AspectJProxyFactory proxyFactory = new AspectJProxyFactory(new TestBean());
+		proxyFactory.addAspect(LoggingAspectOnSetter.class);
+		ITestBean proxy = proxyFactory.getProxy();
+		assertTrue(proxy.doWithVarargs(MyEnum.A, MyOtherEnum.C));
 	}
 
 
 	public interface ITestBean {
 
 		int getAge();
+
+		<V extends MyInterface> boolean doWithVarargs(V... args);
 	}
 
 
@@ -134,6 +143,8 @@ public class AspectProxyFactoryTests {
 			this.age = age;
 		}
 
+		@SuppressWarnings("unchecked")
+		@Override
 		public <V extends MyInterface> boolean doWithVarargs(V... args) {
 			return true;
 		}
@@ -150,12 +161,29 @@ public class AspectProxyFactoryTests {
 	}
 
 
+	public enum MyOtherEnum implements MyInterface {
+
+		C, D;
+	}
+
+
 	@Aspect
-	public static class LoggingAspect {
+	public static class LoggingAspectOnVarargs {
 
 		@Around("execution(* doWithVarargs(*))")
 		public Object doLog(ProceedingJoinPoint pjp) throws Throwable {
-			LogFactory.getLog(LoggingAspect.class).debug(Arrays.asList(pjp.getArgs()));
+			LogFactory.getLog(LoggingAspectOnVarargs.class).debug(Arrays.asList(pjp.getArgs()));
+			return pjp.proceed();
+		}
+	}
+
+
+	@Aspect
+	public static class LoggingAspectOnSetter {
+
+		@Around("execution(* setAge(*))")
+		public Object doLog(ProceedingJoinPoint pjp) throws Throwable {
+			LogFactory.getLog(LoggingAspectOnSetter.class).debug(Arrays.asList(pjp.getArgs()));
 			return pjp.proceed();
 		}
 	}

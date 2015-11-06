@@ -16,7 +16,6 @@
 
 package org.springframework.core;
 
-import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -27,6 +26,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -85,7 +85,7 @@ public class ResolvableType implements Serializable {
 	 * {@code ResolvableType} returned when no value is available. {@code NONE} is used
 	 * in preference to {@code null} so that multiple method calls can be safely chained.
 	 */
-	public static final ResolvableType NONE = new ResolvableType(null, null, null, null);
+	public static final ResolvableType NONE = new ResolvableType(null, null, null, 0);
 
 	private static final ResolvableType[] EMPTY_TYPES_ARRAY = new ResolvableType[0];
 
@@ -118,6 +118,8 @@ public class ResolvableType implements Serializable {
 	 */
 	private final Class<?> resolved;
 
+	private final Integer hash;
+
 	private ResolvableType superType;
 
 	private ResolvableType[] interfaces;
@@ -126,7 +128,8 @@ public class ResolvableType implements Serializable {
 
 
 	/**
-	 * Private constructor used to create a new {@link ResolvableType} for cache key purposes.
+	 * Private constructor used to create a new {@link ResolvableType} for cache key purposes,
+	 * with no upfront resolution.
 	 */
 	private ResolvableType(Type type, TypeProvider typeProvider, VariableResolver variableResolver) {
 		this.type = type;
@@ -134,10 +137,26 @@ public class ResolvableType implements Serializable {
 		this.variableResolver = variableResolver;
 		this.componentType = null;
 		this.resolved = null;
+		this.hash = calculateHashCode();
 	}
 
 	/**
-	 * Private constructor used to create a new {@link ResolvableType} for resolution purposes.
+	 * Private constructor used to create a new {@link ResolvableType} for cache value purposes,
+	 * with upfront resolution and a pre-calculated hash.
+	 * @since 4.2
+	 */
+	private ResolvableType(Type type, TypeProvider typeProvider, VariableResolver variableResolver, Integer hash) {
+		this.type = type;
+		this.typeProvider = typeProvider;
+		this.variableResolver = variableResolver;
+		this.componentType = null;
+		this.resolved = resolveClass();
+		this.hash = hash;
+	}
+
+	/**
+	 * Private constructor used to create a new {@link ResolvableType} for uncached purposes,
+	 * with upfront resolution but lazily calculated hash.
 	 */
 	private ResolvableType(
 			Type type, TypeProvider typeProvider, VariableResolver variableResolver, ResolvableType componentType) {
@@ -147,6 +166,7 @@ public class ResolvableType implements Serializable {
 		this.variableResolver = variableResolver;
 		this.componentType = componentType;
 		this.resolved = resolveClass();
+		this.hash = null;
 	}
 
 	/**
@@ -160,6 +180,7 @@ public class ResolvableType implements Serializable {
 		this.typeProvider = null;
 		this.variableResolver = null;
 		this.componentType = null;
+		this.hash = null;
 	}
 
 
@@ -422,8 +443,7 @@ public class ResolvableType implements Serializable {
 			return NONE;
 		}
 		if (this.superType == null) {
-			this.superType = forType(SerializableTypeWrapper.forGenericSuperclass(resolved),
-					asVariableResolver());
+			this.superType = forType(SerializableTypeWrapper.forGenericSuperclass(resolved), asVariableResolver());
 		}
 		return this.superType;
 	}
@@ -440,8 +460,7 @@ public class ResolvableType implements Serializable {
 			return EMPTY_TYPES_ARRAY;
 		}
 		if (this.interfaces == null) {
-			this.interfaces = forTypes(SerializableTypeWrapper.forGenericInterfaces(resolved),
-					asVariableResolver());
+			this.interfaces = forTypes(SerializableTypeWrapper.forGenericInterfaces(resolved), asVariableResolver());
 		}
 		return this.interfaces;
 	}
@@ -811,36 +830,42 @@ public class ResolvableType implements Serializable {
 		if (!(other instanceof ResolvableType)) {
 			return false;
 		}
+
 		ResolvableType otherType = (ResolvableType) other;
-		return (ObjectUtils.nullSafeEquals(this.type, otherType.type) &&
-				ObjectUtils.nullSafeEquals(getSource(), otherType.getSource()) &&
-				variableResolverSourceEquals(otherType.variableResolver) &&
-				ObjectUtils.nullSafeEquals(this.componentType, otherType.componentType));
+		if (!ObjectUtils.nullSafeEquals(this.type, otherType.type)) {
+			return false;
+		}
+		if (this.typeProvider != otherType.typeProvider &&
+				(this.typeProvider == null || otherType.typeProvider == null ||
+				!ObjectUtils.nullSafeEquals(this.typeProvider.getSource(), otherType.typeProvider.getSource()))) {
+			return false;
+		}
+		if (this.variableResolver != otherType.variableResolver &&
+				(this.variableResolver == null || otherType.variableResolver == null ||
+				!ObjectUtils.nullSafeEquals(this.variableResolver.getSource(), otherType.variableResolver.getSource()))) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(this.componentType, otherType.componentType)) {
+			return false;
+		}
+		return true;
 	}
 
 	@Override
 	public int hashCode() {
+		return (this.hash != null ? this.hash : calculateHashCode());
+	}
+
+	private int calculateHashCode() {
 		int hashCode = ObjectUtils.nullSafeHashCode(this.type);
-		hashCode = 31 * hashCode + ObjectUtils.nullSafeHashCode(getSource());
-		hashCode = 31 * hashCode + variableResolverSourceHashCode();
-		hashCode = 31 * hashCode + ObjectUtils.nullSafeHashCode(this.componentType);
-		return hashCode;
-	}
-
-	private boolean variableResolverSourceEquals(VariableResolver other) {
-		if (this.variableResolver == null) {
-			return (other == null);
+		if (this.typeProvider != null) {
+			hashCode = 31 * hashCode + ObjectUtils.nullSafeHashCode(this.typeProvider.getSource());
 		}
-		if (other == null) {
-			return false;
-		}
-		return ObjectUtils.nullSafeEquals(this.variableResolver.getSource(), other.getSource());
-	}
-
-	private int variableResolverSourceHashCode() {
-		int hashCode = 0;
 		if (this.variableResolver != null) {
-			hashCode = ObjectUtils.nullSafeHashCode(this.variableResolver.getSource());
+			hashCode = 31 * hashCode + ObjectUtils.nullSafeHashCode(this.variableResolver.getSource());
+		}
+		if (this.componentType != null) {
+			hashCode = 31 * hashCode + ObjectUtils.nullSafeHashCode(this.componentType);
 		}
 		return hashCode;
 	}
@@ -858,7 +883,7 @@ public class ResolvableType implements Serializable {
 	/**
 	 * Custom serialization support for {@link #NONE}.
 	 */
-	private Object readResolve() throws ObjectStreamException {
+	private Object readResolve() {
 		return (this.type == null ? NONE : this);
 	}
 
@@ -1292,7 +1317,7 @@ public class ResolvableType implements Serializable {
 		// For simple Class references, build the wrapper right away -
 		// no expensive resolution necessary, so not worth caching...
 		if (type instanceof Class) {
-			return new ResolvableType(type, typeProvider, variableResolver, null);
+			return new ResolvableType(type, typeProvider, variableResolver, (ResolvableType) null);
 		}
 
 		// Purge empty entries on access since we don't have a clean-up thread or the like.
@@ -1302,7 +1327,7 @@ public class ResolvableType implements Serializable {
 		ResolvableType key = new ResolvableType(type, typeProvider, variableResolver);
 		ResolvableType resolvableType = cache.get(key);
 		if (resolvableType == null) {
-			resolvableType = new ResolvableType(type, typeProvider, variableResolver, null);
+			resolvableType = new ResolvableType(type, typeProvider, variableResolver, key.hash);
 			cache.put(resolvableType, resolvableType);
 		}
 		return resolvableType;
@@ -1393,8 +1418,8 @@ public class ResolvableType implements Serializable {
 		}
 
 		@Override
-		public Type[] getActualTypeArguments() {
-			return this.typeArguments;
+		public Type getOwnerType() {
+			return null;
 		}
 
 		@Override
@@ -1403,8 +1428,26 @@ public class ResolvableType implements Serializable {
 		}
 
 		@Override
-		public Type getOwnerType() {
-			return null;
+		public Type[] getActualTypeArguments() {
+			return this.typeArguments;
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			if (this == other) {
+				return true;
+			}
+			if (!(other instanceof ParameterizedType)) {
+				return false;
+			}
+			ParameterizedType otherType = (ParameterizedType) other;
+			return (otherType.getOwnerType() == null && this.rawType.equals(otherType.getRawType()) &&
+					Arrays.equals(this.typeArguments, otherType.getActualTypeArguments()));
+		}
+
+		@Override
+		public int hashCode() {
+			return (this.rawType.hashCode() * 31 + Arrays.hashCode(this.typeArguments));
 		}
 	}
 

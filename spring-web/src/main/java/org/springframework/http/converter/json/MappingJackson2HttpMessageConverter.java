@@ -29,7 +29,8 @@ import org.springframework.http.MediaType;
  *
  * <p>This converter can be used to bind to typed beans, or untyped {@link java.util.HashMap HashMap} instances.
  *
- * <p>By default, this converter supports {@code application/json} and {@code application/*+json}.
+ * <p>By default, this converter supports {@code application/json} and {@code application/*+json}
+ * with {@code UTF-8} character set.
  * This can be overridden by setting the {@link #setSupportedMediaTypes supportedMediaTypes} property.
  *
  * <p>The default constructor uses the default configuration provided by {@link Jackson2ObjectMapperBuilder}.
@@ -62,7 +63,7 @@ public class MappingJackson2HttpMessageConverter extends AbstractJackson2HttpMes
 	 * @see Jackson2ObjectMapperBuilder#json()
 	 */
 	public MappingJackson2HttpMessageConverter(ObjectMapper objectMapper) {
-		super(objectMapper, new MediaType("application", "json", DEFAULT_CHARSET),
+		super(objectMapper, MediaType.APPLICATION_JSON_UTF8,
 				new MediaType("application", "*+json", DEFAULT_CHARSET));
 	}
 
@@ -95,6 +96,7 @@ public class MappingJackson2HttpMessageConverter extends AbstractJackson2HttpMes
 		String jsonpFunction =
 				(object instanceof MappingJacksonValue ? ((MappingJacksonValue) object).getJsonpFunction() : null);
 		if (jsonpFunction != null) {
+			generator.writeRaw("/**/");
 			generator.writeRaw(jsonpFunction + "(");
 		}
 	}

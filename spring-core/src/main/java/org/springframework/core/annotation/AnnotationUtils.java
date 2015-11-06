@@ -25,8 +25,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +37,6 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.ConcurrentReferenceHashMap;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
@@ -113,20 +112,14 @@ public abstract class AnnotationUtils {
 	public static final String VALUE = "value";
 
 
-	/**
-	 * An object that can be stored in {@link AnnotationAttributes} as a
-	 * placeholder for an attribute's declared default value.
-	 */
-	private static final Object DEFAULT_VALUE_PLACEHOLDER = new String("<SPRING DEFAULT VALUE PLACEHOLDER>");
-
 	private static final Map<AnnotationCacheKey, Annotation> findAnnotationCache =
 			new ConcurrentReferenceHashMap<AnnotationCacheKey, Annotation>(256);
 
-	private static final Map<Class<?>, Boolean> annotatedInterfaceCache =
-			new ConcurrentReferenceHashMap<Class<?>, Boolean>(256);
-
 	private static final Map<AnnotationCacheKey, Boolean> metaPresentCache =
 			new ConcurrentReferenceHashMap<AnnotationCacheKey, Boolean>(256);
+
+	private static final Map<Class<?>, Boolean> annotatedInterfaceCache =
+			new ConcurrentReferenceHashMap<Class<?>, Boolean>(256);
 
 	private static final Map<Class<? extends Annotation>, Boolean> synthesizableCache =
 			new ConcurrentReferenceHashMap<Class<? extends Annotation>, Boolean>(256);
@@ -309,9 +302,9 @@ public abstract class AnnotationUtils {
 	 * compiler if the supplied element is a {@link Method}.
 	 * <p>Meta-annotations will be searched if the annotation is not
 	 * <em>present</em> on the supplied element.
-	 * @param annotatedElement the element to look for annotations on; never {@code null}
-	 * @param annotationType the annotation type to look for; never {@code null}
-	 * @return the annotations found or an empty set; never {@code null}
+	 * @param annotatedElement the element to look for annotations on
+	 * @param annotationType the annotation type to look for
+	 * @return the annotations found or an empty set (never {@code null})
 	 * @since 4.2
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class, Class)
 	 * @see #getDeclaredRepeatableAnnotations(AnnotatedElement, Class, Class)
@@ -339,13 +332,13 @@ public abstract class AnnotationUtils {
 	 * compiler if the supplied element is a {@link Method}.
 	 * <p>Meta-annotations will be searched if the annotation is not
 	 * <em>present</em> on the supplied element.
-	 * @param annotatedElement the element to look for annotations on; never {@code null}
-	 * @param annotationType the annotation type to look for; never {@code null}
+	 * @param annotatedElement the element to look for annotations on
+	 * @param annotationType the annotation type to look for
 	 * @param containerAnnotationType the type of the container that holds
 	 * the annotations; may be {@code null} if a container is not supported
 	 * or if it should be looked up via @{@link java.lang.annotation.Repeatable}
 	 * when running on Java 8 or higher
-	 * @return the annotations found or an empty set; never {@code null}
+	 * @return the annotations found or an empty set (never {@code null})
 	 * @since 4.2
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class)
 	 * @see #getDeclaredRepeatableAnnotations(AnnotatedElement, Class)
@@ -388,9 +381,9 @@ public abstract class AnnotationUtils {
 	 * compiler if the supplied element is a {@link Method}.
 	 * <p>Meta-annotations will be searched if the annotation is not
 	 * <em>present</em> on the supplied element.
-	 * @param annotatedElement the element to look for annotations on; never {@code null}
-	 * @param annotationType the annotation type to look for; never {@code null}
-	 * @return the annotations found or an empty set; never {@code null}
+	 * @param annotatedElement the element to look for annotations on
+	 * @param annotationType the annotation type to look for
+	 * @return the annotations found or an empty set (never {@code null})
 	 * @since 4.2
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class)
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class, Class)
@@ -419,13 +412,13 @@ public abstract class AnnotationUtils {
 	 * compiler if the supplied element is a {@link Method}.
 	 * <p>Meta-annotations will be searched if the annotation is not
 	 * <em>present</em> on the supplied element.
-	 * @param annotatedElement the element to look for annotations on; never {@code null}
-	 * @param annotationType the annotation type to look for; never {@code null}
+	 * @param annotatedElement the element to look for annotations on
+	 * @param annotationType the annotation type to look for
 	 * @param containerAnnotationType the type of the container that holds
 	 * the annotations; may be {@code null} if a container is not supported
 	 * or if it should be looked up via @{@link java.lang.annotation.Repeatable}
 	 * when running on Java 8 or higher
-	 * @return the annotations found or an empty set; never {@code null}
+	 * @return the annotations found or an empty set (never {@code null})
 	 * @since 4.2
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class)
 	 * @see #getRepeatableAnnotations(AnnotatedElement, Class, Class)
@@ -447,15 +440,15 @@ public abstract class AnnotationUtils {
 	 * compiler if the supplied element is a {@link Method}.
 	 * <p>Meta-annotations will be searched if the annotation is not
 	 * <em>present</em> on the supplied element.
-	 * @param annotatedElement the element to look for annotations on; never {@code null}
-	 * @param annotationType the annotation type to look for; never {@code null}
+	 * @param annotatedElement the element to look for annotations on
+	 * @param annotationType the annotation type to look for
 	 * @param containerAnnotationType the type of the container that holds
 	 * the annotations; may be {@code null} if a container is not supported
 	 * or if it should be looked up via @{@link java.lang.annotation.Repeatable}
 	 * when running on Java 8 or higher
 	 * @param declaredMode {@code true} if only declared annotations (i.e.,
 	 * directly or indirectly present) should be considered
-	 * @return the annotations found or an empty set; never {@code null}
+	 * @return the annotations found or an empty set (never {@code null})
 	 * @since 4.2
 	 * @see org.springframework.core.BridgeMethodResolver#findBridgedMethod
 	 * @see java.lang.annotation.Repeatable
@@ -497,8 +490,8 @@ public abstract class AnnotationUtils {
 	public static <A extends Annotation> A findAnnotation(AnnotatedElement annotatedElement, Class<A> annotationType) {
 		// Do NOT store result in the findAnnotationCache since doing so could break
 		// findAnnotation(Class, Class) and findAnnotation(Method, Class).
-		return synthesizeAnnotation(findAnnotation(annotatedElement, annotationType, new HashSet<Annotation>()),
-				annotatedElement);
+		return synthesizeAnnotation(
+				findAnnotation(annotatedElement, annotationType, new HashSet<Annotation>()), annotatedElement);
 	}
 
 	/**
@@ -584,11 +577,12 @@ public abstract class AnnotationUtils {
 			}
 
 			if (result != null) {
+				result = synthesizeAnnotation(result, method);
 				findAnnotationCache.put(cacheKey, result);
 			}
 		}
 
-		return synthesizeAnnotation(result, method);
+		return result;
 	}
 
 	private static <A extends Annotation> A searchOnInterfaces(Method method, Class<A> annotationType, Class<?>... ifcs) {
@@ -660,7 +654,7 @@ public abstract class AnnotationUtils {
 	/**
 	 * Perform the actual work for {@link #findAnnotation(AnnotatedElement, Class)},
 	 * honoring the {@code synthesize} flag.
-	 * @param clazz the class to look for annotations on; never {@code null}
+	 * @param clazz the class to look for annotations on
 	 * @param annotationType the type of annotation to look for
 	 * @param synthesize {@code true} if the result should be
 	 * {@linkplain #synthesizeAnnotation(Annotation) synthesized}
@@ -673,11 +667,12 @@ public abstract class AnnotationUtils {
 		A result = (A) findAnnotationCache.get(cacheKey);
 		if (result == null) {
 			result = findAnnotation(clazz, annotationType, new HashSet<Annotation>());
-			if (result != null) {
+			if (result != null && synthesize) {
+				result = synthesizeAnnotation(result, clazz);
 				findAnnotationCache.put(cacheKey, result);
 			}
 		}
-		return (synthesize ? synthesizeAnnotation(result, clazz) : result);
+		return result;
 	}
 
 	/**
@@ -786,7 +781,7 @@ public abstract class AnnotationUtils {
 	 * @see #isAnnotationDeclaredLocally(Class, Class)
 	 */
 	public static Class<?> findAnnotationDeclaringClassForTypes(List<Class<? extends Annotation>> annotationTypes, Class<?> clazz) {
-		Assert.notEmpty(annotationTypes, "The list of annotation types must not be empty");
+		Assert.notEmpty(annotationTypes, "List of annotation types must not be empty");
 		if (clazz == null || Object.class == clazz) {
 			return null;
 		}
@@ -860,7 +855,7 @@ public abstract class AnnotationUtils {
 	/**
 	 * Determine if an annotation of type {@code metaAnnotationType} is
 	 * <em>meta-present</em> on the supplied {@code annotationType}.
-	 * @param annotationType the annotation type to search on; never {@code null}
+	 * @param annotationType the annotation type to search on
 	 * @param metaAnnotationType the type of meta-annotation to search for
 	 * @return {@code true} if such an annotation is meta-present
 	 * @since 4.2.1
@@ -914,7 +909,7 @@ public abstract class AnnotationUtils {
 	 * However, the {@code Map} signature has been preserved for binary compatibility.
 	 * @param annotation the annotation to retrieve the attributes for
 	 * @return the Map of annotation attributes, with attribute names as keys and
-	 * corresponding attribute values as values; never {@code null}
+	 * corresponding attribute values as values (never {@code null})
 	 * @see #getAnnotationAttributes(AnnotatedElement, Annotation)
 	 * @see #getAnnotationAttributes(Annotation, boolean, boolean)
 	 * @see #getAnnotationAttributes(AnnotatedElement, Annotation, boolean, boolean)
@@ -934,7 +929,7 @@ public abstract class AnnotationUtils {
 	 * compatibility with {@link org.springframework.core.type.AnnotationMetadata})
 	 * or to preserve them as Class references
 	 * @return the Map of annotation attributes, with attribute names as keys and
-	 * corresponding attribute values as values; never {@code null}
+	 * corresponding attribute values as values (never {@code null})
 	 * @see #getAnnotationAttributes(Annotation, boolean, boolean)
 	 */
 	public static Map<String, Object> getAnnotationAttributes(Annotation annotation, boolean classValuesAsString) {
@@ -954,7 +949,7 @@ public abstract class AnnotationUtils {
 	 * {@link org.springframework.core.type.AnnotationMetadata}) or to preserve them as
 	 * {@code Annotation} instances
 	 * @return the annotation attributes (a specialized Map) with attribute names as keys
-	 * and corresponding attribute values as values; never {@code null}
+	 * and corresponding attribute values as values (never {@code null})
 	 * @since 3.1.1
 	 */
 	public static AnnotationAttributes getAnnotationAttributes(Annotation annotation, boolean classValuesAsString,
@@ -972,7 +967,7 @@ public abstract class AnnotationUtils {
 	 * may be {@code null} if unknown
 	 * @param annotation the annotation to retrieve the attributes for
 	 * @return the annotation attributes (a specialized Map) with attribute names as keys
-	 * and corresponding attribute values as values; never {@code null}
+	 * and corresponding attribute values as values (never {@code null})
 	 * @since 4.2
 	 * @see #getAnnotationAttributes(AnnotatedElement, Annotation, boolean, boolean)
 	 */
@@ -995,13 +990,16 @@ public abstract class AnnotationUtils {
 	 * {@link org.springframework.core.type.AnnotationMetadata}) or to preserve them as
 	 * {@code Annotation} instances
 	 * @return the annotation attributes (a specialized Map) with attribute names as keys
-	 * and corresponding attribute values as values; never {@code null}
+	 * and corresponding attribute values as values (never {@code null})
 	 * @since 4.2
 	 */
 	public static AnnotationAttributes getAnnotationAttributes(AnnotatedElement annotatedElement,
 			Annotation annotation, boolean classValuesAsString, boolean nestedAnnotationsAsMap) {
 
-		return getAnnotationAttributes(annotatedElement, annotation, classValuesAsString, nestedAnnotationsAsMap, false);
+		AnnotationAttributes attributes =
+				retrieveAnnotationAttributes(annotatedElement, annotation, classValuesAsString, nestedAnnotationsAsMap);
+		postProcessAnnotationAttributes(annotatedElement, attributes, classValuesAsString, nestedAnnotationsAsMap);
+		return attributes;
 	}
 
 	/**
@@ -1009,16 +1007,9 @@ public abstract class AnnotationUtils {
 	 * <p>This method provides fully recursive annotation reading capabilities on par with
 	 * the reflection-based {@link org.springframework.core.type.StandardAnnotationMetadata}.
 	 * <p><strong>NOTE</strong>: This variant of {@code getAnnotationAttributes()} is
-	 * only intended for use within the framework. Specifically, the {@code mergeMode} flag
-	 * can be set to {@code true} in order to support processing of attribute aliases while
-	 * merging attributes within an annotation hierarchy. When running in <em>merge mode</em>,
-	 * the following special rules apply:
+	 * only intended for use within the framework. The following special rules apply:
 	 * <ol>
-	 * <li>The supplied annotation will <em>not</em> be
-	 * {@linkplain #synthesizeAnnotation synthesized} before retrieving its attributes;
-	 * however, nested annotations and arrays of nested annotations <em>will</em> be
-	 * synthesized.</li>
-	 * <li>Default values will be replaced with {@link #DEFAULT_VALUE_PLACEHOLDER}.</li>
+	 * <li>Default values will be replaced with default value placeholders.</li>
 	 * <li>The resulting, merged annotation attributes should eventually be
 	 * {@linkplain #postProcessAnnotationAttributes post-processed} in order to
 	 * ensure that placeholders have been replaced by actual default values and
@@ -1034,33 +1025,26 @@ public abstract class AnnotationUtils {
 	 * {@link AnnotationAttributes} maps (for compatibility with
 	 * {@link org.springframework.core.type.AnnotationMetadata}) or to preserve them as
 	 * {@code Annotation} instances
-	 * @param mergeMode whether the annotation attributes should be created
-	 * using <em>merge mode</em>
 	 * @return the annotation attributes (a specialized Map) with attribute names as keys
-	 * and corresponding attribute values as values; never {@code null}
+	 * and corresponding attribute values as values (never {@code null})
 	 * @since 4.2
 	 * @see #postProcessAnnotationAttributes
 	 */
-	static AnnotationAttributes getAnnotationAttributes(AnnotatedElement annotatedElement, Annotation annotation,
-			boolean classValuesAsString, boolean nestedAnnotationsAsMap, boolean mergeMode) {
-
-		if (!mergeMode) {
-			annotation = synthesizeAnnotation(annotation, annotatedElement);
-		}
+	static AnnotationAttributes retrieveAnnotationAttributes(AnnotatedElement annotatedElement, Annotation annotation,
+			boolean classValuesAsString, boolean nestedAnnotationsAsMap) {
 
 		Class<? extends Annotation> annotationType = annotation.annotationType();
-		AnnotationAttributes attrs = new AnnotationAttributes(annotationType);
+		AnnotationAttributes attributes = new AnnotationAttributes(annotationType);
+
 		for (Method method : getAttributeMethods(annotationType)) {
 			try {
-				Object value = method.invoke(annotation);
+				Object attributeValue = method.invoke(annotation);
 				Object defaultValue = method.getDefaultValue();
-				if (mergeMode && (defaultValue != null)) {
-					if (ObjectUtils.nullSafeEquals(value, defaultValue)) {
-						value = DEFAULT_VALUE_PLACEHOLDER;
-					}
+				if (defaultValue != null && ObjectUtils.nullSafeEquals(attributeValue, defaultValue)) {
+					attributeValue = new DefaultValueHolder(defaultValue);
 				}
-				attrs.put(method.getName(),
-					adaptValue(annotatedElement, value, classValuesAsString, nestedAnnotationsAsMap));
+				attributes.put(method.getName(),
+						adaptValue(annotatedElement, attributeValue, classValuesAsString, nestedAnnotationsAsMap));
 			}
 			catch (Exception ex) {
 				if (ex instanceof InvocationTargetException) {
@@ -1070,7 +1054,8 @@ public abstract class AnnotationUtils {
 				throw new IllegalStateException("Could not obtain annotation attribute value for " + method, ex);
 			}
 		}
-		return attrs;
+
+		return attributes;
 	}
 
 	/**
@@ -1108,7 +1093,6 @@ public abstract class AnnotationUtils {
 
 		if (value instanceof Annotation) {
 			Annotation annotation = (Annotation) value;
-
 			if (nestedAnnotationsAsMap) {
 				return getAnnotationAttributes(annotatedElement, annotation, classValuesAsString, true);
 			}
@@ -1119,12 +1103,11 @@ public abstract class AnnotationUtils {
 
 		if (value instanceof Annotation[]) {
 			Annotation[] annotations = (Annotation[]) value;
-
 			if (nestedAnnotationsAsMap) {
 				AnnotationAttributes[] mappedAnnotations = new AnnotationAttributes[annotations.length];
 				for (int i = 0; i < annotations.length; i++) {
-					mappedAnnotations[i] = getAnnotationAttributes(annotatedElement, annotations[i],
-							classValuesAsString, true);
+					mappedAnnotations[i] =
+							getAnnotationAttributes(annotatedElement, annotations[i], classValuesAsString, true);
 				}
 				return mappedAnnotations;
 			}
@@ -1135,6 +1118,101 @@ public abstract class AnnotationUtils {
 
 		// Fallback
 		return value;
+	}
+
+	/**
+	 * Post-process the supplied {@link AnnotationAttributes}.
+	 * <p>Specifically, this method enforces <em>attribute alias</em> semantics
+	 * for annotation attributes that are annotated with {@link AliasFor @AliasFor}
+	 * and replaces default value placeholders with their original default values.
+	 * @param annotatedElement the element that is annotated with an annotation or
+	 * annotation hierarchy from which the supplied attributes were created;
+	 * may be {@code null} if unknown
+	 * @param attributes the annotation attributes to post-process
+	 * @param classValuesAsString whether to convert Class references into Strings (for
+	 * compatibility with {@link org.springframework.core.type.AnnotationMetadata})
+	 * or to preserve them as Class references
+	 * @param nestedAnnotationsAsMap whether to convert nested annotations into
+	 * {@link AnnotationAttributes} maps (for compatibility with
+	 * {@link org.springframework.core.type.AnnotationMetadata}) or to preserve them as
+	 * {@code Annotation} instances
+	 * @since 4.2
+	 * @see #retrieveAnnotationAttributes(AnnotatedElement, Annotation, boolean, boolean)
+	 * @see #getDefaultValue(Class, String)
+	 */
+	static void postProcessAnnotationAttributes(AnnotatedElement annotatedElement,
+			AnnotationAttributes attributes, boolean classValuesAsString, boolean nestedAnnotationsAsMap) {
+
+		// Abort?
+		if (attributes == null) {
+			return;
+		}
+
+		Class<? extends Annotation> annotationType = attributes.annotationType();
+
+		// Track which attribute values have already been replaced so that we can short
+		// circuit the search algorithms.
+		Set<String> valuesAlreadyReplaced = new HashSet<String>();
+
+		// Validate @AliasFor configuration
+		Map<String, List<String>> aliasMap = getAttributeAliasMap(annotationType);
+		for (String attributeName : aliasMap.keySet()) {
+			if (valuesAlreadyReplaced.contains(attributeName)) {
+				continue;
+			}
+			Object value = attributes.get(attributeName);
+			boolean valuePresent = (value != null && !(value instanceof DefaultValueHolder));
+
+			for (String aliasedAttributeName : aliasMap.get(attributeName)) {
+				if (valuesAlreadyReplaced.contains(aliasedAttributeName)) {
+					continue;
+				}
+
+				Object aliasedValue = attributes.get(aliasedAttributeName);
+				boolean aliasPresent = (aliasedValue != null && !(aliasedValue instanceof DefaultValueHolder));
+
+				// Something to validate or replace with an alias?
+				if (valuePresent || aliasPresent) {
+					if (valuePresent && aliasPresent) {
+						// Since annotation attributes can be arrays, we must use ObjectUtils.nullSafeEquals().
+						if (!ObjectUtils.nullSafeEquals(value, aliasedValue)) {
+							String elementAsString = (annotatedElement != null ? annotatedElement.toString() : "unknown element");
+							throw new AnnotationConfigurationException(String.format(
+									"In AnnotationAttributes for annotation [%s] declared on %s, " +
+											"attribute '%s' and its alias '%s' are declared with values of [%s] and [%s], " +
+											"but only one is permitted.", annotationType.getName(), elementAsString,
+									attributeName, aliasedAttributeName, ObjectUtils.nullSafeToString(value),
+									ObjectUtils.nullSafeToString(aliasedValue)));
+						}
+					}
+					else if (aliasPresent) {
+						// Replace value with aliasedValue
+						attributes.put(attributeName,
+								adaptValue(annotatedElement, aliasedValue, classValuesAsString, nestedAnnotationsAsMap));
+						valuesAlreadyReplaced.add(attributeName);
+					}
+					else {
+						// Replace aliasedValue with value
+						attributes.put(aliasedAttributeName,
+								adaptValue(annotatedElement, value, classValuesAsString, nestedAnnotationsAsMap));
+						valuesAlreadyReplaced.add(aliasedAttributeName);
+					}
+				}
+			}
+		}
+
+		// Replace any remaining placeholders with actual default values
+		for (String attributeName : attributes.keySet()) {
+			if (valuesAlreadyReplaced.contains(attributeName)) {
+				continue;
+			}
+			Object value = attributes.get(attributeName);
+			if (value instanceof DefaultValueHolder) {
+				value = ((DefaultValueHolder) value).defaultValue;
+				attributes.put(attributeName,
+						adaptValue(annotatedElement, value, classValuesAsString, nestedAnnotationsAsMap));
+			}
+		}
 	}
 
 	/**
@@ -1277,7 +1355,7 @@ public abstract class AnnotationUtils {
 		DefaultAnnotationAttributeExtractor attributeExtractor =
 				new DefaultAnnotationAttributeExtractor(annotation, annotatedElement);
 		InvocationHandler handler = new SynthesizedAnnotationInvocationHandler(attributeExtractor);
-		return (A) Proxy.newProxyInstance(ClassUtils.getDefaultClassLoader(),
+		return (A) Proxy.newProxyInstance(annotation.getClass().getClassLoader(),
 				new Class<?>[] {(Class<A>) annotationType, SynthesizedAnnotation.class}, handler);
 	}
 
@@ -1296,7 +1374,7 @@ public abstract class AnnotationUtils {
 	 * {@link Map} that is an ideal candidate for this method's
 	 * {@code attributes} argument.
 	 * @param attributes the map of annotation attributes to synthesize
-	 * @param annotationType the type of annotation to synthesize; never {@code null}
+	 * @param annotationType the type of annotation to synthesize
 	 * @param annotatedElement the element that is annotated with the annotation
 	 * corresponding to the supplied attributes; may be {@code null} if unknown
 	 * @return the synthesized annotation, or {@code null} if the supplied attributes
@@ -1323,7 +1401,7 @@ public abstract class AnnotationUtils {
 		MapAnnotationAttributeExtractor attributeExtractor =
 				new MapAnnotationAttributeExtractor(attributes, annotationType, annotatedElement);
 		InvocationHandler handler = new SynthesizedAnnotationInvocationHandler(attributeExtractor);
-		return (A) Proxy.newProxyInstance(ClassUtils.getDefaultClassLoader(),
+		return (A) Proxy.newProxyInstance(annotationType.getClassLoader(),
 				new Class<?>[] {annotationType, SynthesizedAnnotation.class}, handler);
 	}
 
@@ -1333,7 +1411,7 @@ public abstract class AnnotationUtils {
 	 * {@link #synthesizeAnnotation(Map, Class, AnnotatedElement)},
 	 * supplying an empty map for the source attribute values and {@code null}
 	 * for the {@link AnnotatedElement}.
-	 * @param annotationType the type of annotation to synthesize; never {@code null}
+	 * @param annotationType the type of annotation to synthesize
 	 * @return the synthesized annotation
 	 * @throws IllegalArgumentException if a required attribute is missing
 	 * @throws AnnotationConfigurationException if invalid configuration of
@@ -1422,7 +1500,7 @@ public abstract class AnnotationUtils {
 	 * <p>An empty return value implies that the annotation does not declare
 	 * any attribute aliases.
 	 * @param annotationType the annotation type to find attribute aliases in
-	 * @return a map containing attribute aliases; never {@code null}
+	 * @return a map containing attribute aliases (never {@code null})
 	 * @since 4.2
 	 */
 	static Map<String, List<String>> getAttributeAliasMap(Class<? extends Annotation> annotationType) {
@@ -1435,7 +1513,7 @@ public abstract class AnnotationUtils {
 			return map;
 		}
 
-		map = new HashMap<String, List<String>>();
+		map = new LinkedHashMap<String, List<String>>();
 		for (Method attribute : getAttributeMethods(annotationType)) {
 			List<String> aliasNames = getAttributeAliasNames(attribute);
 			if (!aliasNames.isEmpty()) {
@@ -1499,9 +1577,9 @@ public abstract class AnnotationUtils {
 	/**
 	 * Get the names of the aliased attributes configured via
 	 * {@link AliasFor @AliasFor} for the supplied annotation {@code attribute}.
-	 * @param attribute the attribute to find aliases for; never {@code null}
-	 * @return the names of the aliased attributes; never {@code null}, though
-	 * potentially <em>empty</em>
+	 * @param attribute the attribute to find aliases for
+	 * @return the names of the aliased attributes (never {@code null}, though
+	 * potentially <em>empty</em>)
 	 * @throws IllegalArgumentException if the supplied attribute method is
 	 * {@code null} or not from an annotation
 	 * @throws AnnotationConfigurationException if invalid configuration of
@@ -1549,7 +1627,7 @@ public abstract class AnnotationUtils {
 	 * @param annotationType the type in which to search for attribute methods;
 	 * never {@code null}
 	 * @return all annotation attribute methods in the specified annotation
-	 * type; never {@code null}, though potentially <em>empty</em>
+	 * type (never {@code null}, though potentially <em>empty</em>)
 	 * @since 4.2
 	 */
 	static List<Method> getAttributeMethods(Class<? extends Annotation> annotationType) {
@@ -1575,7 +1653,7 @@ public abstract class AnnotationUtils {
 	 * supplied {@code element}.
 	 * @param element the element to search on
 	 * @param annotationName the fully qualified class name of the annotation
-	 * type to find; never {@code null} or empty
+	 * type to find
 	 * @return the annotation if found; {@code null} otherwise
 	 * @since 4.2
 	 */
@@ -1606,103 +1684,6 @@ public abstract class AnnotationUtils {
 	 */
 	static boolean isAnnotationTypeMethod(Method method) {
 		return (method != null && method.getName().equals("annotationType") && method.getParameterTypes().length == 0);
-	}
-
-	/**
-	 * Post-process the supplied {@link AnnotationAttributes}.
-	 * <p>Specifically, this method enforces <em>attribute alias</em> semantics
-	 * for annotation attributes that are annotated with {@link AliasFor @AliasFor}
-	 * and replaces {@linkplain #DEFAULT_VALUE_PLACEHOLDER placeholders} with their
-	 * original default values.
-	 * @param element the element that is annotated with an annotation or
-	 * annotation hierarchy from which the supplied attributes were created;
-	 * may be {@code null} if unknown
-	 * @param attributes the annotation attributes to post-process
-	 * @param classValuesAsString whether to convert Class references into Strings (for
-	 * compatibility with {@link org.springframework.core.type.AnnotationMetadata})
-	 * or to preserve them as Class references
-	 * @param nestedAnnotationsAsMap whether to convert nested annotations into
-	 * {@link AnnotationAttributes} maps (for compatibility with
-	 * {@link org.springframework.core.type.AnnotationMetadata}) or to preserve them as
-	 * {@code Annotation} instances
-	 * @since 4.2
-	 * @see #getAnnotationAttributes(AnnotatedElement, Annotation, boolean, boolean, boolean)
-	 * @see #DEFAULT_VALUE_PLACEHOLDER
-	 * @see #getDefaultValue(Class, String)
-	 */
-	static void postProcessAnnotationAttributes(AnnotatedElement element, AnnotationAttributes attributes,
-			boolean classValuesAsString, boolean nestedAnnotationsAsMap) {
-
-		// Abort?
-		if (attributes == null) {
-			return;
-		}
-
-		Class<? extends Annotation> annotationType = attributes.annotationType();
-
-		// Track which attribute values have already been replaced so that we can short
-		// circuit the search algorithms.
-		Set<String> valuesAlreadyReplaced = new HashSet<String>();
-
-		// Validate @AliasFor configuration
-		Map<String, List<String>> aliasMap = getAttributeAliasMap(annotationType);
-		for (String attributeName : aliasMap.keySet()) {
-			if (valuesAlreadyReplaced.contains(attributeName)) {
-				continue;
-			}
-			Object value = attributes.get(attributeName);
-			boolean valuePresent = (value != null && value != DEFAULT_VALUE_PLACEHOLDER);
-
-			for (String aliasedAttributeName : aliasMap.get(attributeName)) {
-				if (valuesAlreadyReplaced.contains(aliasedAttributeName)) {
-					continue;
-				}
-
-				Object aliasedValue = attributes.get(aliasedAttributeName);
-				boolean aliasPresent = (aliasedValue != null && aliasedValue != DEFAULT_VALUE_PLACEHOLDER);
-
-				// Something to validate or replace with an alias?
-				if (valuePresent || aliasPresent) {
-					if (valuePresent && aliasPresent) {
-						// Since annotation attributes can be arrays, we must use ObjectUtils.nullSafeEquals().
-						if (!ObjectUtils.nullSafeEquals(value, aliasedValue)) {
-							String elementAsString = (element != null ? element.toString() : "unknown element");
-							String msg = String.format("In AnnotationAttributes for annotation [%s] declared on [%s], " +
-									"attribute [%s] and its alias [%s] are declared with values of [%s] and [%s], " +
-									"but only one declaration is permitted.", annotationType.getName(),
-									elementAsString, attributeName, aliasedAttributeName,
-									ObjectUtils.nullSafeToString(value), ObjectUtils.nullSafeToString(aliasedValue));
-							throw new AnnotationConfigurationException(msg);
-						}
-					}
-					else if (aliasPresent) {
-						// Replace value with aliasedValue
-						attributes.put(attributeName,
-								adaptValue(element, aliasedValue, classValuesAsString, nestedAnnotationsAsMap));
-						valuesAlreadyReplaced.add(attributeName);
-					}
-					else {
-						// Replace aliasedValue with value
-						attributes.put(aliasedAttributeName,
-								adaptValue(element, value, classValuesAsString, nestedAnnotationsAsMap));
-						valuesAlreadyReplaced.add(aliasedAttributeName);
-					}
-				}
-			}
-		}
-
-		// Replace any remaining placeholders with actual default values
-		for (String attributeName : attributes.keySet()) {
-			if (valuesAlreadyReplaced.contains(attributeName)) {
-				continue;
-			}
-			Object value = attributes.get(attributeName);
-			if (value == DEFAULT_VALUE_PLACEHOLDER) {
-				attributes.put(attributeName,
-					adaptValue(element, getDefaultValue(annotationType, attributeName), classValuesAsString,
-						nestedAnnotationsAsMap));
-			}
-		}
 	}
 
 	/**
@@ -2126,10 +2107,10 @@ public abstract class AnnotationUtils {
 		 * one of the attributes has been declared while simultaneously ensuring
 		 * that at least one of the attributes has been declared.
 		 * @param aliasFor the {@code @AliasFor} annotation from which to retrieve
-		 * the aliased attribute name; never {@code null}
+		 * the aliased attribute name
 		 * @param attribute the attribute that is annotated with {@code @AliasFor},
-		 * used solely for building an exception message; never {@code null}
-		 * @return the name of the aliased attribute, never {@code null} or empty
+		 * used solely for building an exception message
+		 * @return the name of the aliased attribute (never {@code null} or empty)
 		 * @throws AnnotationConfigurationException if invalid configuration of
 		 * {@code @AliasFor} is detected
 		 * @since 4.2
@@ -2159,6 +2140,16 @@ public abstract class AnnotationUtils {
 			}
 
 			return attributeName.trim();
+		}
+	}
+
+
+	private static class DefaultValueHolder {
+
+		final Object defaultValue;
+
+		public DefaultValueHolder(Object defaultValue) {
+			this.defaultValue = defaultValue;
 		}
 	}
 
