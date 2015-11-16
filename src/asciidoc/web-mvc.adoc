@@ -867,7 +867,7 @@ also <<mvc-config-content-negotiation>> for content negotiation configuration.
 
 
 [[mvc-ann-requestmapping-rfd]]
-==== Suffix Suffix Pattern Matching and RFD
+==== Suffix Pattern Matching and RFD
 
 Reflected file download (RFD) attack was first described in a
 https://www.trustwave.com/Resources/SpiderLabs-Blog/Reflected-File-Download---A-New-Web-Attack-Vector/[paper by Trustwave]
@@ -884,7 +884,7 @@ nor disabling the use of path extensions for content negotiation purposes alone
 are effective at preventing RFD attacks.
 
 For comprehensive protection against RFD, prior to rendering the response body
-Spring MVC adds a `Content-Disposition:attachment;filename=f.txt` header to
+Spring MVC adds a `Content-Disposition:inline;filename=f.txt` header to
 suggest a fixed and safe download file filename. This is done only if the URL
 path contains a file extension that is neither whitelisted nor explicitly
 registered for content negotiation purposes. However it may potentially have
@@ -907,7 +907,7 @@ Below are additional recommendations from the report:
   For an example of how to do that with Spring see https://github.com/rwinch/spring-jackson-owasp[spring-jackson-owasp].
 * Configure suffix pattern matching to be turned off or restricted to explicitly
   registered suffixes only.
-* Configure content negotiation with the properties “useJaf” and “ignoreUknownPathExtension”
+* Configure content negotiation with the properties "useJaf" and "ignoreUnknownPathExtensions"
   set to false which would result in a 406 response for URLs with unknown extensions.
   Note however that this may not be an option if URLs are naturally expected to have
   a dot towards the end.
@@ -1059,7 +1059,9 @@ media type. For example:
 ----
 
 Consumable media type expressions can also be negated as in __!text/plain__ to match to
-all requests other than those with __Content-Type__ of __text/plain__.
+all requests other than those with __Content-Type__ of __text/plain__. Also consider
+using constants provided in `MediaType` such as `APPLICATION_JSON_VALUE` and
+`APPLICATION_JSON_UTF8_VALUE`.
 
 [TIP]
 ====
@@ -1099,7 +1101,8 @@ the `UTF-8` charset.
 
 Just like with __consumes__, producible media type expressions can be negated as in
 __!text/plain__ to match to all requests other than those with an __Accept__ header
-value of __text/plain__.
+value of __text/plain__. Also consider using constants provided in `MediaType` such
+as `APPLICATION_JSON_VALUE` and `APPLICATION_JSON_UTF8_VALUE`.
 
 [TIP]
 ====
