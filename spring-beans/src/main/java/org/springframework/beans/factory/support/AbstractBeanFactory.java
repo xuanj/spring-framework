@@ -293,7 +293,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 									"Circular depends-on relationship between '" + beanName + "' and '" + dependsOnBean + "'");
 						}
 						registerDependentBean(dependsOnBean, beanName);
-						getBean(dependsOnBean);
+						getBean(dependsOnBean);// 这里是对依赖对象进行创建
 					}
 				}
 
@@ -322,7 +322,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					Object prototypeInstance = null;
 					try {
 						beforePrototypeCreation(beanName);
-						prototypeInstance = createBean(beanName, mbd, args);
+						prototypeInstance = createBean(beanName, mbd, args);//创建bean，这里就是实质的注入属性等 
 					}
 					finally {
 						afterPrototypeCreation(beanName);

@@ -35,6 +35,7 @@ import org.springframework.core.io.ResourceLoader;
  * @author Juergen Hoeller
  * @since 1.1
  * @see org.springframework.core.io.Resource
+ * Bean实例信息描述读取
  */
 public interface BeanDefinitionReader {
 

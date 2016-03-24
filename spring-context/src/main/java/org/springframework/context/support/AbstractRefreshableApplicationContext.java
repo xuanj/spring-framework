@@ -67,7 +67,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 
 	private Boolean allowCircularReferences;
 
-	/** Bean factory for this context */
+	/** Bean factory for this context Bean缓存于此*/
 	private DefaultListableBeanFactory beanFactory;
 
 	/** Synchronization monitor for the internal BeanFactory */
@@ -123,9 +123,10 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 			closeBeanFactory();
 		}
 		try {
-			DefaultListableBeanFactory beanFactory = createBeanFactory();
+			DefaultListableBeanFactory beanFactory = createBeanFactory();//DefaultListableBeanFactory 默认管理Bean的Factory
 			beanFactory.setSerializationId(getId());
 			customizeBeanFactory(beanFactory);
+			// 加载BeanDefinitions，详见其子类AbstractXmlApplicationContext  
 			loadBeanDefinitions(beanFactory);
 			synchronized (this.beanFactoryMonitor) {
 				this.beanFactory = beanFactory;

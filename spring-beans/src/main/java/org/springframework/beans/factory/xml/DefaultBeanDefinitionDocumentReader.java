@@ -81,6 +81,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 
 
 	/**
+	 * 具体解析XML，加载BeanDefinition
 	 * This implementation parses bean definitions according to the "spring-beans" XSD
 	 * (or DTD, historically).
 	 * <p>Opens a DOM Document; then initializes the default settings
@@ -91,6 +92,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		this.readerContext = readerContext;
 		logger.debug("Loading bean definitions");
 		Element root = doc.getDocumentElement();
+		// 加载、注册BeanDefitions 
 		doRegisterBeanDefinitions(root);
 	}
 
@@ -135,6 +137,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 		}
 
 		preProcessXml(root);
+		// 解析BeanDefinitions
 		parseBeanDefinitions(root, this.delegate);
 		postProcessXml(root);
 
@@ -162,7 +165,7 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 				if (node instanceof Element) {
 					Element ele = (Element) node;
 					if (delegate.isDefaultNamespace(ele)) {
-						parseDefaultElement(ele, delegate);
+						parseDefaultElement(ele, delegate);//一个个节点解析
 					}
 					else {
 						delegate.parseCustomElement(ele);
@@ -176,13 +179,16 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	}
 
 	private void parseDefaultElement(Element ele, BeanDefinitionParserDelegate delegate) {
+		// import 解析
 		if (delegate.nodeNameEquals(ele, IMPORT_ELEMENT)) {
 			importBeanDefinitionResource(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, ALIAS_ELEMENT)) {
+			// alias节点解析
 			processAliasRegistration(ele);
 		}
 		else if (delegate.nodeNameEquals(ele, BEAN_ELEMENT)) {
+			// *解析bean  节点
 			processBeanDefinition(ele, delegate);
 		}
 		else if (delegate.nodeNameEquals(ele, NESTED_BEANS_ELEMENT)) {
@@ -290,13 +296,16 @@ public class DefaultBeanDefinitionDocumentReader implements BeanDefinitionDocume
 	/**
 	 * Process the given bean element, parsing the bean definition
 	 * and registering it with the registry.
+	 * MARK Bean 解析与注册 此处分开两步
 	 */
 	protected void processBeanDefinition(Element ele, BeanDefinitionParserDelegate delegate) {
+		// 解析BEAN，将解析的BeanDefinition包装下，实质解析交给委派类 ，详见BeanDefinitionParserDelegate
 		BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele);
 		if (bdHolder != null) {
 			bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
 			try {
 				// Register the final decorated instance.
+				 // 注册BeanDefinition，即注册到BeanFactory中 
 				BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry());
 			}
 			catch (BeanDefinitionStoreException ex) {

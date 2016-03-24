@@ -35,6 +35,7 @@ import org.springframework.core.AttributeAccessor;
  * @see ConfigurableListableBeanFactory#getBeanDefinition
  * @see org.springframework.beans.factory.support.RootBeanDefinition
  * @see org.springframework.beans.factory.support.ChildBeanDefinition
+ * MARK Bean实例信息描述接口
  */
 public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 

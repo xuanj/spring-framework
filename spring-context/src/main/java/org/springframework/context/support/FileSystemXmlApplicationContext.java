@@ -138,6 +138,7 @@ public class FileSystemXmlApplicationContext extends AbstractXmlApplicationConte
 		// 设置Spring配置文件 
 		setConfigLocations(configLocations);
 		if (refresh) {
+			 // IOC容器初始化入口，详见其父类AbstractApplicationContext
 			refresh();
 		}
 	}

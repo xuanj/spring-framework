@@ -104,6 +104,7 @@ import org.springframework.core.ResolvableType;
  * @see org.springframework.beans.factory.config.BeanPostProcessor#postProcessAfterInitialization
  * @see DisposableBean#destroy
  * @see org.springframework.beans.factory.support.RootBeanDefinition#getDestroyMethodName
+ * IOC容器根接口
  */
 public interface BeanFactory {
 
