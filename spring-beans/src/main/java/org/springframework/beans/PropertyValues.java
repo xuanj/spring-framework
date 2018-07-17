@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2012 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package org.springframework.beans;
+
+import org.springframework.lang.Nullable;
 
 /**
  * Holder containing one or more {@link PropertyValue} objects,
@@ -35,15 +37,16 @@ public interface PropertyValues {
 	/**
 	 * Return the property value with the given name, if any.
 	 * @param propertyName the name to search for
-	 * @return the property value, or {@code null}
+	 * @return the property value, or {@code null} if none
 	 */
+	@Nullable
 	PropertyValue getPropertyValue(String propertyName);
 
 	/**
 	 * Return the changes since the previous PropertyValues.
 	 * Subclasses should also override {@code equals}.
 	 * @param old old property values
-	 * @return PropertyValues updated or new properties.
+	 * @return the updated or new properties.
 	 * Return empty PropertyValues if there are no changes.
 	 * @see Object#equals
 	 */

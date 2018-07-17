@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2011 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 package org.springframework.core.env;
 
+import org.springframework.lang.Nullable;
+
 /**
  * Holder containing one or more {@link PropertySource} objects.
  *
  * @author Chris Beams
  * @since 3.1
+ * @see PropertySource
  */
 public interface PropertySources extends Iterable<PropertySource<?>> {
 
@@ -34,6 +37,7 @@ public interface PropertySources extends Iterable<PropertySource<?>> {
 	 * Return the property source with the given name, {@code null} if not found.
 	 * @param name the {@linkplain PropertySource#getName() name of the property source} to find
 	 */
+	@Nullable
 	PropertySource<?> get(String name);
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,21 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Before;
+import org.junit.Test;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ContextFactory;
+import org.mozilla.javascript.ScriptableObject;
+
+import org.springframework.beans.DirectFieldAccessor;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.test.MockHttpServletRequest;
+import org.springframework.mock.web.test.MockHttpServletResponse;
+import org.springframework.ui.ModelMap;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.servlet.View;
+
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -40,22 +55,8 @@ import com.fasterxml.jackson.databind.ser.FilterProvider;
 import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import org.junit.Before;
-import org.junit.Test;
-import org.mozilla.javascript.Context;
-import org.mozilla.javascript.ContextFactory;
-import org.mozilla.javascript.ScriptableObject;
 
-import org.springframework.beans.DirectFieldAccessor;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.test.MockHttpServletRequest;
-import org.springframework.mock.web.test.MockHttpServletResponse;
-import org.springframework.ui.ModelMap;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.servlet.View;
-
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -97,7 +98,7 @@ public class MappingJackson2JsonViewTests {
 
 	@Test
 	public void renderSimpleMap() throws Exception {
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("bindingResult", mock(BindingResult.class, "binding_result"));
 		model.put("foo", "bar");
 
@@ -117,7 +118,7 @@ public class MappingJackson2JsonViewTests {
 
 	@Test
 	public void renderWithSelectedContentType() throws Exception {
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("foo", "bar");
 
 		view.render(model, request, response);
@@ -133,7 +134,7 @@ public class MappingJackson2JsonViewTests {
 	public void renderCaching() throws Exception {
 		view.setDisableCaching(false);
 
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("bindingResult", mock(BindingResult.class, "binding_result"));
 		model.put("foo", "bar");
 
@@ -151,7 +152,7 @@ public class MappingJackson2JsonViewTests {
 	@Test
 	public void renderSimpleBean() throws Exception {
 		Object bean = new TestBeanSimple();
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("bindingResult", mock(BindingResult.class, "binding_result"));
 		model.put("foo", bean);
 
@@ -194,7 +195,7 @@ public class MappingJackson2JsonViewTests {
 	@Test
 	public void renderWithCustomSerializerLocatedByAnnotation() throws Exception {
 		Object bean = new TestBeanSimpleAnnotated();
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("foo", bean);
 
 		view.render(model, request, response);
@@ -213,7 +214,7 @@ public class MappingJackson2JsonViewTests {
 		view.setObjectMapper(mapper);
 
 		Object bean = new TestBeanSimple();
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("foo", bean);
 		model.put("bar", new TestChildBean());
 
@@ -229,13 +230,13 @@ public class MappingJackson2JsonViewTests {
 	@Test
 	public void renderOnlyIncludedAttributes() throws Exception {
 
-		Set<String> attrs = new HashSet<String>();
+		Set<String> attrs = new HashSet<>();
 		attrs.add("foo");
 		attrs.add("baz");
 		attrs.add("nil");
 
 		view.setModelKeys(attrs);
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("foo", "foo");
 		model.put("bar", "bar");
 		model.put("baz", "baz");
@@ -284,7 +285,7 @@ public class MappingJackson2JsonViewTests {
 	@Test
 	public void renderSimpleBeanWithJsonView() throws Exception {
 		Object bean = new TestBeanSimple();
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("bindingResult", mock(BindingResult.class, "binding_result"));
 		model.put("foo", bean);
 		model.put(JsonView.class.getName(), MyJacksonView1.class);
@@ -305,7 +306,7 @@ public class MappingJackson2JsonViewTests {
 		TestSimpleBeanFiltered bean = new TestSimpleBeanFiltered();
 		bean.setProperty1("value");
 		bean.setProperty2("value");
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("bindingResult", mock(BindingResult.class, "binding_result"));
 		model.put("foo", bean);
 		FilterProvider filters = new SimpleFilterProvider().addFilter("myJacksonFilter",
@@ -325,11 +326,19 @@ public class MappingJackson2JsonViewTests {
 
 	@Test
 	public void renderWithJsonp() throws Exception {
+		testJsonp("jsonp", "callback", false);
+		testJsonp("jsonp", "_callback", false);
+		testJsonp("jsonp", "_Call.bAcK", false);
+		testJsonp("jsonp", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.", false);
+		testJsonp("jsonp", "<script>", false);
+		testJsonp("jsonp", "!foo!bar", false);
+
+		this.view.setJsonpParameterNames(new LinkedHashSet<>(Arrays.asList("jsonp")));
+
 		testJsonp("jsonp", "callback", true);
 		testJsonp("jsonp", "_callback", true);
 		testJsonp("jsonp", "_Call.bAcK", true);
 		testJsonp("jsonp", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.", true);
-
 		testJsonp("jsonp", "<script>", false);
 		testJsonp("jsonp", "!foo!bar", false);
 	}
@@ -348,7 +357,7 @@ public class MappingJackson2JsonViewTests {
 	}
 
 	private void testJsonp(String paramName, String paramValue, boolean validValue) throws Exception {
-		Map<String, Object> model = new HashMap<String, Object>();
+		Map<String, Object> model = new HashMap<>();
 		model.put("foo", "bar");
 
 		this.request = new MockHttpServletRequest();

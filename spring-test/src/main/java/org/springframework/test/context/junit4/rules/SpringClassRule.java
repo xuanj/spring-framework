@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@ package org.springframework.test.context.junit4.rules;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.logging.Log;
@@ -56,7 +58,7 @@ import org.springframework.util.ClassUtils;
  * <pre><code> public class ExampleSpringIntegrationTest {
  *
  *    &#064;ClassRule
- *    public static final SpringClassRule SPRING_CLASS_RULE = new SpringClassRule();
+ *    public static final SpringClassRule springClassRule = new SpringClassRule();
  *
  *    &#064;Rule
  *    public final SpringMethodRule springMethodRule = new SpringMethodRule();
@@ -76,7 +78,7 @@ import org.springframework.util.ClassUtils;
  * <li>{@link org.springframework.test.annotation.IfProfileValue @IfProfileValue}</li>
  * </ul>
  *
- * <p><strong>NOTE:</strong> This class requires JUnit 4.9 or higher.
+ * <p><strong>NOTE:</strong> As of Spring Framework 4.3, this class requires JUnit 4.12 or higher.
  *
  * @author Sam Brannen
  * @author Philippe Marschall
@@ -93,20 +95,11 @@ public class SpringClassRule implements TestRule {
 	/**
 	 * Cache of {@code TestContextManagers} keyed by test class.
 	 */
-	private static final Map<Class<?>, TestContextManager> testContextManagerCache =
-			new ConcurrentHashMap<Class<?>, TestContextManager>(64);
-
-	// Used by RunAfterTestClassCallbacks
-	private static final String MULTIPLE_FAILURE_EXCEPTION_CLASS_NAME = "org.junit.runners.model.MultipleFailureException";
+	private static final Map<Class<?>, TestContextManager> testContextManagerCache = new ConcurrentHashMap<>(64);
 
 	static {
-		boolean junit4dot9Present = ClassUtils.isPresent(MULTIPLE_FAILURE_EXCEPTION_CLASS_NAME,
-			SpringClassRule.class.getClassLoader());
-		if (!junit4dot9Present) {
-			throw new IllegalStateException(String.format(
-				"Failed to find class [%s]: SpringClassRule requires JUnit 4.9 or higher.",
-				MULTIPLE_FAILURE_EXCEPTION_CLASS_NAME));
-		}
+		Assert.state(ClassUtils.isPresent("org.junit.internal.Throwables", SpringClassRule.class.getClassLoader()),
+				"SpringClassRule requires JUnit 4.12 or higher.");
 	}
 
 
@@ -151,35 +144,35 @@ public class SpringClassRule implements TestRule {
 	}
 
 	/**
-	 * Wrap the supplied {@code statement} with a {@code RunBeforeTestClassCallbacks} statement.
+	 * Wrap the supplied {@link Statement} with a {@code RunBeforeTestClassCallbacks} statement.
 	 * @see RunBeforeTestClassCallbacks
 	 */
-	private Statement withBeforeTestClassCallbacks(Statement statement, TestContextManager testContextManager) {
-		return new RunBeforeTestClassCallbacks(statement, testContextManager);
+	private Statement withBeforeTestClassCallbacks(Statement next, TestContextManager testContextManager) {
+		return new RunBeforeTestClassCallbacks(next, testContextManager);
 	}
 
 	/**
-	 * Wrap the supplied {@code statement} with a {@code RunAfterTestClassCallbacks} statement.
+	 * Wrap the supplied {@link Statement} with a {@code RunAfterTestClassCallbacks} statement.
 	 * @see RunAfterTestClassCallbacks
 	 */
-	private Statement withAfterTestClassCallbacks(Statement statement, TestContextManager testContextManager) {
-		return new RunAfterTestClassCallbacks(statement, testContextManager);
+	private Statement withAfterTestClassCallbacks(Statement next, TestContextManager testContextManager) {
+		return new RunAfterTestClassCallbacks(next, testContextManager);
 	}
 
 	/**
-	 * Wrap the supplied {@code statement} with a {@code ProfileValueChecker} statement.
+	 * Wrap the supplied {@link Statement} with a {@code ProfileValueChecker} statement.
 	 * @see ProfileValueChecker
 	 */
-	private Statement withProfileValueCheck(Statement statement, Class<?> testClass) {
-		return new ProfileValueChecker(statement, testClass, null);
+	private Statement withProfileValueCheck(Statement next, Class<?> testClass) {
+		return new ProfileValueChecker(next, testClass, null);
 	}
 
 	/**
-	 * Wrap the supplied {@code statement} with a {@code TestContextManagerCacheEvictor} statement.
+	 * Wrap the supplied {@link Statement} with a {@code TestContextManagerCacheEvictor} statement.
 	 * @see TestContextManagerCacheEvictor
 	 */
-	private Statement withTestContextManagerCacheEviction(Statement statement, Class<?> testClass) {
-		return new TestContextManagerCacheEvictor(statement, testClass);
+	private Statement withTestContextManagerCacheEviction(Statement next, Class<?> testClass) {
+		return new TestContextManagerCacheEvictor(next, testClass);
 	}
 
 
@@ -189,28 +182,22 @@ public class SpringClassRule implements TestRule {
 	 * annotated with {@code @Rule}.
 	 */
 	private static void validateSpringMethodRuleConfiguration(Class<?> testClass) {
-		Field ruleField = null;
+		Field ruleField = findSpringMethodRuleField(testClass).orElseThrow(() ->
+				new IllegalStateException(String.format(
+						"Failed to find 'public SpringMethodRule' field in test class [%s]. " +
+						"Consult the javadoc for SpringClassRule for details.", testClass.getName())));
 
-		for (Field field : testClass.getFields()) {
-			int modifiers = field.getModifiers();
-			if (!Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) &&
-					SpringMethodRule.class.isAssignableFrom(field.getType())) {
-				ruleField = field;
-				break;
-			}
-		}
+		Assert.state(ruleField.isAnnotationPresent(Rule.class), () -> String.format(
+				"SpringMethodRule field [%s] must be annotated with JUnit's @Rule annotation. " +
+				"Consult the javadoc for SpringClassRule for details.", ruleField));
+	}
 
-		if (ruleField == null) {
-			throw new IllegalStateException(String.format(
-					"Failed to find 'public SpringMethodRule' field in test class [%s]. " +
-					"Consult the javadoc for SpringClassRule for details.", testClass.getName()));
-		}
-
-		if (!ruleField.isAnnotationPresent(Rule.class)) {
-			throw new IllegalStateException(String.format(
-					"SpringMethodRule field [%s] must be annotated with JUnit's @Rule annotation. " +
-					"Consult the javadoc for SpringClassRule for details.", ruleField));
-		}
+	private static Optional<Field> findSpringMethodRuleField(Class<?> testClass) {
+		return Arrays.stream(testClass.getFields())
+				.filter(field -> !Modifier.isStatic(field.getModifiers()))
+				.filter(field -> Modifier.isPublic(field.getModifiers()))
+				.filter(field -> SpringMethodRule.class.isAssignableFrom(field.getType()))
+				.findFirst();
 	}
 
 	/**
@@ -218,15 +205,8 @@ public class SpringClassRule implements TestRule {
 	 * @param testClass the test class to be managed; never {@code null}
 	 */
 	static TestContextManager getTestContextManager(Class<?> testClass) {
-		Assert.notNull(testClass, "testClass must not be null");
-		synchronized (testContextManagerCache) {
-			TestContextManager testContextManager = testContextManagerCache.get(testClass);
-			if (testContextManager == null) {
-				testContextManager = new TestContextManager(testClass);
-				testContextManagerCache.put(testClass, testContextManager);
-			}
-			return testContextManager;
-		}
+		Assert.notNull(testClass, "Test Class must not be null");
+		return testContextManagerCache.computeIfAbsent(testClass, TestContextManager::new);
 	}
 
 
@@ -236,7 +216,6 @@ public class SpringClassRule implements TestRule {
 
 		private final Class<?> testClass;
 
-
 		TestContextManagerCacheEvictor(Statement next, Class<?> testClass) {
 			this.next = next;
 			this.testClass = testClass;
@@ -245,10 +224,10 @@ public class SpringClassRule implements TestRule {
 		@Override
 		public void evaluate() throws Throwable {
 			try {
-				next.evaluate();
+				this.next.evaluate();
 			}
 			finally {
-				testContextManagerCache.remove(testClass);
+				testContextManagerCache.remove(this.testClass);
 			}
 		}
 	}

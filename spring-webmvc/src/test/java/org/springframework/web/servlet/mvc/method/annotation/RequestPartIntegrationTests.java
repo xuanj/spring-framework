@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,12 @@
 package org.springframework.web.servlet.mvc.method.annotation;
 
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.servlet.MultipartConfigElement;
 
 import org.eclipse.jetty.server.Connector;
@@ -29,7 +30,6 @@ import org.eclipse.jetty.server.NetworkConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -65,10 +65,10 @@ import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import static org.junit.Assert.*;
-import static org.springframework.web.bind.annotation.RequestMethod.*;
+import static org.junit.Assert.assertEquals;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 /**
  * Test access to parts of a multipart request with {@link RequestPart}.
@@ -88,7 +88,6 @@ public class RequestPartIntegrationTests {
 
 	@BeforeClass
 	public static void startServer() throws Exception {
-
 		// Let server pick its own random, available port.
 		server = new Server(0);
 
@@ -116,8 +115,15 @@ public class RequestPartIntegrationTests {
 		baseUrl = "http://localhost:" + connector.getLocalPort();
 	}
 
+	@AfterClass
+	public static void stopServer() throws Exception {
+		if (server != null) {
+			server.stop();
+		}
+	}
+
 	@Before
-	public void setUp() {
+	public void setup() {
 		ByteArrayHttpMessageConverter emptyBodyConverter = new ByteArrayHttpMessageConverter();
 		emptyBodyConverter.setSupportedMediaTypes(Collections.singletonList(MediaType.APPLICATION_JSON));
 
@@ -134,29 +140,21 @@ public class RequestPartIntegrationTests {
 		restTemplate.setMessageConverters(Collections.singletonList(converter));
 	}
 
-	@AfterClass
-	public static void stopServer() throws Exception {
-		if (server != null) {
-			server.stop();
-		}
-	}
-
 
 	@Test
 	public void commonsMultipartResolver() throws Exception {
-		testCreate(baseUrl + "/commons-resolver/test");
+		testCreate(baseUrl + "/commons-resolver/test", "Jason");
+		testCreate(baseUrl + "/commons-resolver/test", "Arjen");
 	}
 
 	@Test
 	public void standardMultipartResolver() throws Exception {
-		testCreate(baseUrl + "/standard-resolver/test");
+		testCreate(baseUrl + "/standard-resolver/test", "Jason");
+		testCreate(baseUrl + "/standard-resolver/test", "Arjen");
 	}
 
-	// SPR-13319
-
-	@Test
+	@Test  // SPR-13319
 	public void standardMultipartResolverWithEncodedFileName() throws Exception {
-
 		byte[] boundary = MimeTypeUtils.generateMultipartBoundary();
 		String boundaryText = new String(boundary, "US-ASCII");
 		Map<String, String> params = Collections.singletonMap("boundary", boundaryText);
@@ -173,7 +171,7 @@ public class RequestPartIntegrationTests {
 		RequestEntity<byte[]> requestEntity =
 				RequestEntity.post(new URI(baseUrl + "/standard-resolver/spr13319"))
 						.contentType(new MediaType(MediaType.MULTIPART_FORM_DATA, params))
-						.body(content.getBytes(Charset.forName("us-ascii")));
+						.body(content.getBytes(StandardCharsets.US_ASCII));
 
 		ByteArrayHttpMessageConverter converter = new ByteArrayHttpMessageConverter();
 		converter.setSupportedMediaTypes(Collections.singletonList(MediaType.MULTIPART_FORM_DATA));
@@ -183,30 +181,31 @@ public class RequestPartIntegrationTests {
 		assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
 	}
 
-	private void testCreate(String url) {
-		MultiValueMap<String, Object> parts = new LinkedMultiValueMap<String, Object>();
-		parts.add("json-data", new HttpEntity<TestData>(new TestData("Jason")));
-		parts.add("file-data", new ClassPathResource("logo.jpg", this.getClass()));
-		parts.add("empty-data", new HttpEntity<byte[]>(new byte[0])); // SPR-12860
+	private void testCreate(String url, String basename) {
+		MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+		parts.add("json-data", new HttpEntity<>(new TestData(basename)));
+		parts.add("file-data", new ClassPathResource("logo.jpg", getClass()));
+		parts.add("empty-data", new HttpEntity<>(new byte[0])); // SPR-12860
 
 		HttpHeaders headers = new HttpHeaders();
-		headers.setContentType(new MediaType("application", "octet-stream", Charset.forName("ISO-8859-1")));
-		parts.add("iso-8859-1-data", new HttpEntity<byte[]>(new byte[] {(byte) 0xC4}, headers)); // SPR-13096
+		headers.setContentType(new MediaType("application", "octet-stream", StandardCharsets.ISO_8859_1));
+		parts.add("iso-8859-1-data", new HttpEntity<>(new byte[] {(byte) 0xC4}, headers)); // SPR-13096
 
 		URI location = restTemplate.postForLocation(url, parts);
-		assertEquals("http://localhost:8080/test/Jason/logo.jpg", location.toString());
+		assertEquals("http://localhost:8080/test/" + basename + "/logo.jpg", location.toString());
 	}
 
 
 	@Configuration
 	@EnableWebMvc
-	static class RequestPartTestConfig extends WebMvcConfigurerAdapter {
+	static class RequestPartTestConfig implements WebMvcConfigurer {
 
 		@Bean
 		public RequestPartTestController controller() {
 			return new RequestPartTestController();
 		}
 	}
+
 
 	@Configuration
 	@SuppressWarnings("unused")
@@ -218,6 +217,7 @@ public class RequestPartIntegrationTests {
 		}
 	}
 
+
 	@Configuration
 	@SuppressWarnings("unused")
 	static class StandardMultipartResolverTestConfig extends RequestPartTestConfig {
@@ -228,30 +228,32 @@ public class RequestPartIntegrationTests {
 		}
 	}
 
+
 	@Controller
 	@SuppressWarnings("unused")
 	private static class RequestPartTestController {
 
-		@RequestMapping(value = "/test", method = POST, consumes = { "multipart/mixed", "multipart/form-data" })
+		@RequestMapping(value = "/test", method = POST, consumes = {"multipart/mixed", "multipart/form-data"})
 		public ResponseEntity<Object> create(@RequestPart(name = "json-data") TestData testData,
-				@RequestPart("file-data") MultipartFile file,
+				@RequestPart("file-data") Optional<MultipartFile> file,
 				@RequestPart(name = "empty-data", required = false) TestData emptyData,
 				@RequestPart(name = "iso-8859-1-data") byte[] iso88591Data) {
 
 			Assert.assertArrayEquals(new byte[]{(byte) 0xC4}, iso88591Data);
 
-			String url = "http://localhost:8080/test/" + testData.getName() + "/" + file.getOriginalFilename();
+			String url = "http://localhost:8080/test/" + testData.getName() + "/" + file.get().getOriginalFilename();
 			HttpHeaders headers = new HttpHeaders();
 			headers.setLocation(URI.create(url));
-			return new ResponseEntity<Object>(headers, HttpStatus.CREATED);
+			return new ResponseEntity<>(headers, HttpStatus.CREATED);
 		}
 
 		@RequestMapping(value = "/spr13319", method = POST, consumes = "multipart/form-data")
 		public ResponseEntity<Void> create(@RequestPart("file") MultipartFile multipartFile) {
-			assertEquals("%C3%A9l%C3%A8ve.txt", multipartFile.getOriginalFilename());
+			assertEquals("élève.txt", multipartFile.getOriginalFilename());
 			return ResponseEntity.ok().build();
 		}
 	}
+
 
 	@SuppressWarnings("unused")
 	private static class TestData {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,12 @@ package org.springframework.mock.web;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Test;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.util.WebUtils;
 
 import static org.junit.Assert.*;
@@ -92,9 +93,7 @@ public class MockHttpServletResponseTests {
 		assertEquals("UTF-8", response.getCharacterEncoding());
 	}
 
-	// SPR-12677
-
-	@Test
+	@Test  // SPR-12677
 	public void contentTypeHeaderWithMoreComplexCharsetSyntax() {
 		String contentType = "test/plain;charset=\"utf-8\";foo=\"charset=bar\";foocharset=bar;foo=bar";
 		response.setHeader("Content-Type", contentType);
@@ -142,6 +141,13 @@ public class MockHttpServletResponseTests {
 	}
 
 	@Test
+	public void contentLengthIntHeader() {
+		response.addIntHeader("Content-Length", 66);
+		assertEquals(66, response.getContentLength());
+		assertEquals("66", response.getHeader("Content-Length"));
+	}
+
+	@Test
 	public void httpHeaderNameCasingIsPreserved() throws Exception {
 		final String headerName = "Header1";
 		response.addHeader(headerName, "value1");
@@ -149,6 +155,22 @@ public class MockHttpServletResponseTests {
 		assertNotNull(responseHeaders);
 		assertEquals(1, responseHeaders.size());
 		assertEquals("HTTP header casing not being preserved", headerName, responseHeaders.iterator().next());
+	}
+
+	@Test
+	public void cookies() {
+		Cookie cookie = new Cookie("foo", "bar");
+		cookie.setPath("/path");
+		cookie.setDomain("example.com");
+		cookie.setMaxAge(0);
+		cookie.setSecure(true);
+		cookie.setHttpOnly(true);
+
+		response.addCookie(cookie);
+
+		assertEquals("foo=bar; Path=/path; Domain=example.com; " +
+				"Max-Age=0; Expires=Thu, 1 Jan 1970 00:00:00 GMT; " +
+				"Secure; HttpOnly", response.getHeader(HttpHeaders.SET_COOKIE));
 	}
 
 	@Test
@@ -269,25 +291,25 @@ public class MockHttpServletResponseTests {
 		response.getDateHeader("Last-Modified");
 	}
 
-	/**
-	 * SPR-10414
-	 */
-	@Test
+	@Test  // SPR-16160
+	public void getNonExistentDateHeader() {
+		assertNull(response.getHeader("Last-Modified"));
+		assertEquals(-1, response.getDateHeader("Last-Modified"));
+	}
+
+	@Test  // SPR-10414
 	public void modifyStatusAfterSendError() throws IOException {
 		response.sendError(HttpServletResponse.SC_NOT_FOUND);
 		response.setStatus(HttpServletResponse.SC_OK);
-		assertEquals(response.getStatus(),HttpServletResponse.SC_NOT_FOUND);
+		assertEquals(HttpServletResponse.SC_NOT_FOUND, response.getStatus());
 	}
 
-	/**
-	 * SPR-10414
-	 */
-	@Test
+	@Test  // SPR-10414
 	@SuppressWarnings("deprecation")
 	public void modifyStatusMessageAfterSendError() throws IOException {
 		response.sendError(HttpServletResponse.SC_NOT_FOUND);
 		response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"Server Error");
-		assertEquals(response.getStatus(),HttpServletResponse.SC_NOT_FOUND);
+		assertEquals(HttpServletResponse.SC_NOT_FOUND, response.getStatus());
 	}
 
 }

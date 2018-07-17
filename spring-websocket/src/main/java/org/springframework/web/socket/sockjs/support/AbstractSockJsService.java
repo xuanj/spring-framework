@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@
 package org.springframework.web.socket.sockjs.support;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 
@@ -37,6 +39,7 @@ import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.lang.Nullable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -56,7 +59,7 @@ import org.springframework.web.util.WebUtils;
  * path resolution and handling of static SockJS requests (e.g. "/info", "/iframe.html",
  * etc). Sub-classes must handle session URLs (i.e. transport-specific requests).
  *
- * By default, only same origin requests are allowed. Use {@link #setAllowedOrigins(List)}
+ * By default, only same origin requests are allowed. Use {@link #setAllowedOrigins}
  * to specify a list of allowed origins (a list containing "*" will allow all origins).
  *
  * @author Rossen Stoyanchev
@@ -64,8 +67,6 @@ import org.springframework.web.util.WebUtils;
  * @since 4.0
  */
 public abstract class AbstractSockJsService implements SockJsService, CorsConfigurationSource {
-
-	private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
 	private static final long ONE_YEAR = TimeUnit.DAYS.toSeconds(365);
 
@@ -86,17 +87,17 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 
 	private boolean sessionCookieNeeded = true;
 
-	private long heartbeatTime = 25 * 1000;
+	private long heartbeatTime = TimeUnit.SECONDS.toMillis(25);
 
-	private long disconnectDelay = 5 * 1000;
+	private long disconnectDelay = TimeUnit.SECONDS.toMillis(5);
 
 	private int httpMessageCacheSize = 100;
 
 	private boolean webSocketEnabled = true;
 
-	private final List<String> allowedOrigins = new ArrayList<String>();
-
 	private boolean suppressCors = false;
+
+	protected final Set<String> allowedOrigins = new LinkedHashSet<>();
 
 
 	public AbstractSockJsService(TaskScheduler scheduler) {
@@ -275,35 +276,6 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	}
 
 	/**
-	 * Configure allowed {@code Origin} header values. This check is mostly
-	 * designed for browsers. There is nothing preventing other types of client
-	 * to modify the {@code Origin} header value.
-	 * <p>When SockJS is enabled and origins are restricted, transport types
-	 * that do not allow to check request origin (JSONP and Iframe based
-	 * transports) are disabled. As a consequence, IE 6 to 9 are not supported
-	 * when origins are restricted.
-	 * <p>Each provided allowed origin must have a scheme, and optionally a port
-	 * (e.g. "http://example.org", "http://example.org:9090"). An allowed origin
-	 * string may also be "*" in which case all origins are allowed.
-	 * @since 4.1.2
-	 * @see <a href="https://tools.ietf.org/html/rfc6454">RFC 6454: The Web Origin Concept</a>
-	 * @see <a href="https://github.com/sockjs/sockjs-client#supported-transports-by-browser-html-served-from-http-or-https">SockJS supported transports by browser</a>
-	 */
-	public void setAllowedOrigins(List<String> allowedOrigins) {
-		Assert.notNull(allowedOrigins, "Allowed origin List must not be null");
-		this.allowedOrigins.clear();
-		this.allowedOrigins.addAll(allowedOrigins);
-	}
-
-	/**
-	 * @since 4.1.2
-	 * @see #setAllowedOrigins(List)
-	 */
-	public List<String> getAllowedOrigins() {
-		return Collections.unmodifiableList(this.allowedOrigins);
-	}
-
-	/**
 	 * This option can be used to disable automatic addition of CORS headers for
 	 * SockJS requests.
 	 * <p>The default value is "false".
@@ -321,6 +293,35 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 		return this.suppressCors;
 	}
 
+	/**
+	 * Configure allowed {@code Origin} header values. This check is mostly
+	 * designed for browsers. There is nothing preventing other types of client
+	 * to modify the {@code Origin} header value.
+	 * <p>When SockJS is enabled and origins are restricted, transport types
+	 * that do not allow to check request origin (JSONP and Iframe based
+	 * transports) are disabled. As a consequence, IE 6 to 9 are not supported
+	 * when origins are restricted.
+	 * <p>Each provided allowed origin must have a scheme, and optionally a port
+	 * (e.g. "http://example.org", "http://example.org:9090"). An allowed origin
+	 * string may also be "*" in which case all origins are allowed.
+	 * @since 4.1.2
+	 * @see <a href="https://tools.ietf.org/html/rfc6454">RFC 6454: The Web Origin Concept</a>
+	 * @see <a href="https://github.com/sockjs/sockjs-client#supported-transports-by-browser-html-served-from-http-or-https">SockJS supported transports by browser</a>
+	 */
+	public void setAllowedOrigins(Collection<String> allowedOrigins) {
+		Assert.notNull(allowedOrigins, "Allowed origins Collection must not be null");
+		this.allowedOrigins.clear();
+		this.allowedOrigins.addAll(allowedOrigins);
+	}
+
+	/**
+	 * @since 4.1.2
+	 * @see #setAllowedOrigins
+	 */
+	public Collection<String> getAllowedOrigins() {
+		return Collections.unmodifiableSet(this.allowedOrigins);
+	}
+
 
 	/**
 	 * This method determines the SockJS path and handles SockJS static URLs.
@@ -328,7 +329,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	 */
 	@Override
 	public final void handleRequest(ServerHttpRequest request, ServerHttpResponse response,
-			String sockJsPath, WebSocketHandler wsHandler) throws SockJsException {
+			@Nullable String sockJsPath, WebSocketHandler wsHandler) throws SockJsException {
 
 		if (sockJsPath == null) {
 			if (logger.isWarnEnabled()) {
@@ -352,8 +353,8 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 				if (requestInfo != null) {
 					logger.debug("Processing transport request: " + requestInfo);
 				}
-				response.getHeaders().setContentType(new MediaType("text", "plain", UTF8_CHARSET));
-				response.getBody().write("Welcome to SockJS!\n".getBytes(UTF8_CHARSET));
+				response.getHeaders().setContentType(new MediaType("text", "plain", StandardCharsets.UTF_8));
+				response.getBody().write("Welcome to SockJS!\n".getBytes(StandardCharsets.UTF_8));
 			}
 
 			else if (sockJsPath.equals("/info")) {
@@ -465,24 +466,11 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 		String path = request.getURI().getPath();
 		int index = path.lastIndexOf('/') + 1;
 		String filename = path.substring(index);
-		return filename.indexOf(';') == -1;
+		return (filename.indexOf(';') == -1);
 	}
 
-	/**
-	 * Handle request for raw WebSocket communication, i.e. without any SockJS message framing.
-	 */
-	protected abstract void handleRawWebSocketRequest(ServerHttpRequest request,
-			ServerHttpResponse response, WebSocketHandler webSocketHandler) throws IOException;
-
-	/**
-	 * Handle a SockJS session URL (i.e. transport-specific request).
-	 */
-	protected abstract void handleTransportRequest(ServerHttpRequest request, ServerHttpResponse response,
-			WebSocketHandler webSocketHandler, String sessionId, String transport) throws SockJsException;
-
-
-	protected boolean checkOrigin(ServerHttpRequest request, ServerHttpResponse response,
-			HttpMethod... httpMethods) throws IOException {
+	protected boolean checkOrigin(ServerHttpRequest request, ServerHttpResponse response, HttpMethod... httpMethods)
+			throws IOException {
 
 		if (WebUtils.isSameOrigin(request)) {
 			return true;
@@ -500,10 +488,11 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	}
 
 	@Override
+	@Nullable
 	public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
 		if (!this.suppressCors && CorsUtils.isCorsRequest(request)) {
 			CorsConfiguration config = new CorsConfiguration();
-			config.addAllowedOrigin("*");
+			config.setAllowedOrigins(new ArrayList<>(this.allowedOrigins));
 			config.addAllowedMethod("*");
 			config.setAllowCredentials(true);
 			config.setMaxAge(ONE_YEAR);
@@ -525,8 +514,21 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 	protected void sendMethodNotAllowed(ServerHttpResponse response, HttpMethod... httpMethods) {
 		logger.warn("Sending Method Not Allowed (405)");
 		response.setStatusCode(HttpStatus.METHOD_NOT_ALLOWED);
-		response.getHeaders().setAllow(new HashSet<HttpMethod>(Arrays.asList(httpMethods)));
+		response.getHeaders().setAllow(new LinkedHashSet<>(Arrays.asList(httpMethods)));
 	}
+
+
+	/**
+	 * Handle request for raw WebSocket communication, i.e. without any SockJS message framing.
+	 */
+	protected abstract void handleRawWebSocketRequest(ServerHttpRequest request,
+			ServerHttpResponse response, WebSocketHandler webSocketHandler) throws IOException;
+
+	/**
+	 * Handle a SockJS session URL (i.e. transport-specific request).
+	 */
+	protected abstract void handleTransportRequest(ServerHttpRequest request, ServerHttpResponse response,
+			WebSocketHandler webSocketHandler, String sessionId, String transport) throws SockJsException;
 
 
 	private interface SockJsRequestHandler {
@@ -542,24 +544,24 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 
 		@Override
 		public void handle(ServerHttpRequest request, ServerHttpResponse response) throws IOException {
-			if (HttpMethod.GET.equals(request.getMethod())) {
+			if (request.getMethod() == HttpMethod.GET) {
 				addNoCacheHeaders(response);
 				if (checkOrigin(request, response)) {
-					response.getHeaders().setContentType(new MediaType("application", "json", UTF8_CHARSET));
-					String content = String.format(INFO_CONTENT, random.nextInt(),
-							isSessionCookieNeeded(), isWebSocketEnabled());
+					response.getHeaders().setContentType(new MediaType("application", "json", StandardCharsets.UTF_8));
+					String content = String.format(
+							INFO_CONTENT, random.nextInt(), isSessionCookieNeeded(), isWebSocketEnabled());
 					response.getBody().write(content.getBytes());
 				}
 
 			}
-			else if (HttpMethod.OPTIONS.equals(request.getMethod())) {
+			else if (request.getMethod() == HttpMethod.OPTIONS) {
 				if (checkOrigin(request, response)) {
 					addCacheHeaders(response);
 					response.setStatusCode(HttpStatus.NO_CONTENT);
 				}
 			}
 			else {
-				sendMethodNotAllowed(response, HttpMethod.OPTIONS, HttpMethod.GET);
+				sendMethodNotAllowed(response, HttpMethod.GET, HttpMethod.OPTIONS);
 			}
 		}
 	};
@@ -587,13 +589,13 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 
 		@Override
 		public void handle(ServerHttpRequest request, ServerHttpResponse response) throws IOException {
-			if (!HttpMethod.GET.equals(request.getMethod())) {
+			if (request.getMethod() != HttpMethod.GET) {
 				sendMethodNotAllowed(response, HttpMethod.GET);
 				return;
 			}
 
 			String content = String.format(IFRAME_CONTENT, getSockJsClientLibraryUrl());
-			byte[] contentBytes = content.getBytes(UTF8_CHARSET);
+			byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
 			StringBuilder builder = new StringBuilder("\"0");
 			DigestUtils.appendMd5DigestAsHex(contentBytes, builder);
 			builder.append('"');
@@ -605,7 +607,7 @@ public abstract class AbstractSockJsService implements SockJsService, CorsConfig
 				return;
 			}
 
-			response.getHeaders().setContentType(new MediaType("text", "html", UTF8_CHARSET));
+			response.getHeaders().setContentType(new MediaType("text", "html", StandardCharsets.UTF_8));
 			response.getHeaders().setContentLength(contentBytes.length);
 
 			// No cache in order to check every time if IFrame are authorized

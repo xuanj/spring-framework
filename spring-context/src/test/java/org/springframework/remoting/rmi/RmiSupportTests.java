@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2015 the original author or authors.
+ * Copyright 2002-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ import java.rmi.UnknownHostException;
 import java.rmi.UnmarshalException;
 
 import org.aopalliance.intercept.MethodInvocation;
-
 import org.junit.Test;
 
 import org.springframework.remoting.RemoteAccessException;
@@ -56,7 +55,7 @@ public class RmiSupportTests {
 		assertTrue(factory.getObject() instanceof IRemoteBean);
 		IRemoteBean proxy = (IRemoteBean) factory.getObject();
 		proxy.setName("myName");
-		assertEquals(RemoteBean.name, "myName");
+		assertEquals("myName", RemoteBean.name);
 		assertEquals(1, factory.counter);
 	}
 
@@ -180,7 +179,7 @@ public class RmiSupportTests {
 		IBusinessBean proxy = (IBusinessBean) factory.getObject();
 		assertFalse(proxy instanceof IRemoteBean);
 		proxy.setName("myName");
-		assertEquals(RemoteBean.name, "myName");
+		assertEquals("myName", RemoteBean.name);
 		assertEquals(1, factory.counter);
 	}
 
@@ -342,7 +341,7 @@ public class RmiSupportTests {
 			client.afterPropertiesSet();
 			fail("url isn't set, expected IllegalArgumentException");
 		}
-		catch(IllegalArgumentException e){
+		catch (IllegalArgumentException ex){
 			// expected
 		}
 	}
@@ -450,24 +449,21 @@ public class RmiSupportTests {
 	}
 
 
-	public static interface IBusinessBean {
+	public interface IBusinessBean {
 
-		public void setName(String name);
-
+		void setName(String name);
 	}
 
 
-	public static interface IWrongBusinessBean {
+	public interface IWrongBusinessBean {
 
-		public void setOtherName(String name);
-
+		void setOtherName(String name);
 	}
 
 
-	public static interface IRemoteBean extends Remote {
+	public interface IRemoteBean extends Remote {
 
-		public void setName(String name) throws RemoteException;
-
+		void setName(String name) throws RemoteException;
 	}
 
 
