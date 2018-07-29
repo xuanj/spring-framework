@@ -1,4 +1,8 @@
+//***** 重点注意： 如要打开 “---*编译请打开这个注释*” 为了可以在Eclipse里进行调试，只能将一些冲突包注释先。
+//（Eclipse 安装gradel的插件，可以将这些依赖直接引用到项目里，而且，这些test ,optional 非传递或者运行时的依赖也会加载进来。
+// 此处的"buildscript"用于配置Project的build script的classpath
 buildscript {
+	//buildscript 脚本依赖,不是为项目引入
 	repositories {
 		maven { url "https://repo.spring.io/plugins-release" }
 	}
@@ -11,9 +15,15 @@ buildscript {
 }
 
 plugins {
+	//代码质量分析平台
 	id "org.sonarqube" version "1.1"
 }
 
+repositories {
+   mavenLocal()
+}
+
+//全局变量
 ext {
 	linkHomepage = 'https://projects.spring.io/spring-framework'
 	linkCi = 'https://build.spring.io/browse/SPR'
@@ -27,10 +37,11 @@ ext {
 	}
 }
 
+//所有子项目配置
 configure(allprojects) { project ->
 	group = "org.springframework"
 	version = qualifyVersionIfNecessary(version)
-
+	//依赖包版本属性
 	ext.aspectjVersion       = "1.8.9"
 	ext.caffeineVersion      = "2.3.5"
 	ext.eclipselinkVersion   = "2.4.2"
@@ -82,9 +93,10 @@ configure(allprojects) { project ->
 	ext.xstreamVersion       = "1.4.9"
 
 	ext.gradleScriptDir = "${rootProject.projectDir}/gradle"
-
+	//插件
 	apply plugin: "propdeps"
 	apply plugin: "java"
+	apply plugin: "maven"
 	apply plugin: "test-source-set-dependencies"
 	apply from: "${gradleScriptDir}/ide.gradle"
 
@@ -108,9 +120,10 @@ configure(allprojects) { project ->
 		"-Xlint:try", "-Xlint:-fallthrough", "-Xlint:-rawtypes", "-Xlint:-deprecation",
 		"-Xlint:-unchecked", "-Xlint:-options"]
 
+	//编译jdk版本
 	compileJava {
-		sourceCompatibility = 1.6
-		targetCompatibility = 1.6
+		sourceCompatibility = 1.8
+		targetCompatibility = 1.8
 		options.encoding = 'UTF-8'
 	}
 
@@ -132,6 +145,7 @@ configure(allprojects) { project ->
 		exclude(["**/Abstract*.class", '**/*$*'])
 	}
 
+	//项目依赖包
 	repositories {
 		maven { url "https://repo.spring.io/libs-release" }
 	}
@@ -210,6 +224,7 @@ configure(allprojects) { project ->
 	] as String[]
 }
 
+//配置项目
 configure(subprojects - project(":spring-build-src")) { subproject ->
 	apply plugin: "merge"
 	apply from: "${gradleScriptDir}/publish-maven.gradle"
@@ -268,8 +283,8 @@ configure(subprojects - project(":spring-build-src")) { subproject ->
 	}
 
 	artifacts {
-		archives sourcesJar
-		archives javadocJar
+		//archives sourcesJar
+		//archives javadocJar
 	}
 }
 
@@ -343,7 +358,7 @@ project("spring-core") {
 			}
 		}
 	}
-
+	//core项目单独依赖
 	dependencies {
 		cglib("cglib:cglib:${cglibVersion}@jar")
 		objenesis("org.objenesis:objenesis:${objenesisVersion}@jar")
@@ -351,7 +366,7 @@ project("spring-core") {
 
 		compile(files(cglibRepackJar))
 		compile(files(objenesisRepackJar))
-		compile("commons-logging:commons-logging:1.2")
+		compile("commons-logging:commons-logging:1.2")//依赖传递给bean等项目
 		optional("commons-codec:commons-codec:1.10")
 		optional("org.aspectj:aspectjweaver:${aspectjVersion}")
 		optional("net.sf.jopt-simple:jopt-simple:5.0.3")
@@ -384,7 +399,8 @@ project("spring-beans") {
 		compile(project(":spring-core"))
 		compile(files(project(":spring-core").cglibRepackJar))
 		optional("javax.inject:javax.inject:1")
-		optional("javax.el:javax.el-api:2.2.5")
+		// ---*编译请打开这个注释*
+		//optional("javax.el:javax.el-api:2.2.5")//与tai 框架冲突,要单独编译这个包要打个这个注释
 		optional("org.yaml:snakeyaml:${snakeyamlVersion}")
 		testCompile("log4j:log4j:${log4jVersion}")
 		testCompile("org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}")
@@ -396,6 +412,7 @@ project("spring-beans-groovy") {
 
 	merge.into = project(":spring-beans")
 	apply plugin: "groovy"
+	apply plugin: "maven"
 
 	dependencies {
 		compile(project(":spring-core"))
@@ -413,11 +430,11 @@ project("spring-beans-groovy") {
 	}
 
 	compileGroovy {
-		sourceCompatibility = 1.6
-		targetCompatibility = 1.6
+		sourceCompatibility = 1.8
+		targetCompatibility = 1.8
 	}
 }
-
+//面向切面aop
 project("spring-aop") {
 	description = "Spring AOP"
 
@@ -433,6 +450,7 @@ project("spring-aop") {
 	}
 }
 
+//spring el表达式
 project("spring-expression") {
 	description = "Spring Expression Language (SpEL)"
 
@@ -440,7 +458,7 @@ project("spring-expression") {
 		compile(project(":spring-core"))
 	}
 }
-
+//提供一些类级的工具支持和ClassLoader级的实现，用于服务器
 project("spring-instrument") {
 	description = "Spring Instrument"
 
@@ -475,12 +493,13 @@ project("spring-context") {
 	dependencies {
 		compile(project(":spring-aop"))
 		compile(project(":spring-beans"))
+		compile(project(":spring-beans-groovy"))
 		compile(project(":spring-core"))
 		compile(project(":spring-expression"))
 		compile(files(project(":spring-core").cglibRepackJar))
+		optional("javax.ejb:ejb-api:${ejbVersion}")// 原来脚本没有这个依赖，是在哪里承继了？
 		optional(project(":spring-instrument"))
 		optional("javax.inject:javax.inject:1")
-		optional("javax.ejb:ejb-api:${ejbVersion}")
 		optional("javax.enterprise.concurrent:javax.enterprise.concurrent-api:1.0")
 		optional("javax.money:money-api:1.0.1")
 		optional("org.eclipse.persistence:javax.persistence:2.0.0")
@@ -692,7 +711,8 @@ project("spring-web") {
 		optional(project(":spring-oxm"))  // for MarshallingHttpMessageConverter
 		optional("javax.servlet.jsp:javax.servlet.jsp-api:2.2.1")
 		optional("javax.portlet:portlet-api:2.0")
-		optional("javax.el:javax.el-api:2.2.5")
+		// ---*编译请打开这个注释*
+		//optional("javax.el:javax.el-api:2.2.5")
 		optional("javax.faces:javax.faces-api:2.2")
 		optional("javax.validation:validation-api:1.0.0.GA")
 		optional("org.codehaus.groovy:groovy-all:${groovyVersion}")
@@ -707,19 +727,21 @@ project("spring-web") {
 		optional("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.8.11")
 		optional("com.google.code.gson:gson:${gsonVersion}")
 		optional("com.rometools:rome:${romeVersion}")
-		optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet-api"
-		}
-		optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet-api"
-		}
+		// ---*编译请打开这个注释*
+		//optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet-api"
+		//}
+		//optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet-api"
+		//}
 		optional("log4j:log4j:${log4jVersion}")
 		optional("com.google.protobuf:protobuf-java:2.6.1")
 		optional("com.googlecode.protobuf-java-format:protobuf-java-format:1.4")
 		optional("javax.mail:javax.mail-api:${javamailVersion}")
 		testCompile(project(":spring-context-support"))  // for JafMediaTypeFactory
 		testCompile("xmlunit:xmlunit:${xmlunitVersion}")
-		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		// ---*编译请打开这个注释*
+		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.skyscreamer:jsonassert:1.4.0")
 		testCompile("org.apache.taglibs:taglibs-standard-jstlel:1.2.1") {
 			exclude group: "org.apache.taglibs", module: "taglibs-standard-spec"
@@ -839,7 +861,9 @@ project("spring-webmvc") {
 		optional("com.fasterxml.jackson.core:jackson-databind:${jackson2Version}")
 		optional("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.8.11")
 		optional("com.rometools:rome:${romeVersion}")
-		optional("javax.el:javax.el-api:2.2.5")
+		//---*编译请打开这个注释*-
+		//optional("javax.el:javax.el-api:2.2.5")
+		
 		optional("org.apache.tiles:tiles-api:${tiles3Version}")
 		optional("org.apache.tiles:tiles-core:${tiles3Version}") {
 			exclude group: "org.slf4j", module: "jcl-over-slf4j"
@@ -867,19 +891,21 @@ project("spring-webmvc") {
 			exclude group: "xom", module: "xom"
 			exclude group: "xerces", module: "xercesImpl"
 		}
-		testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet"
-		}
-		testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet"
-		}
+		//---*编译请打开这个注释*-
+		//testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet"
+		//}
+		//testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet"
+		//}
 		testCompile("javax.validation:validation-api:1.0.0.GA")
 		testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
 		testCompile("org.apache.httpcomponents:httpclient:${httpclientVersion}")
 		testCompile("commons-fileupload:commons-fileupload:${fileuploadVersion}")
 		testCompile("commons-io:commons-io:1.4")
 		testCompile("joda-time:joda-time:${jodaVersion}")
-		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		//---*编译请打开这个注释*-
+		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.mozilla:rhino:1.7.7.2")
 		testRuntime("org.jruby:jruby:${jrubyVersion}")
 		testRuntime("org.python:jython-standalone:2.5.3")
