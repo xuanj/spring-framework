@@ -504,6 +504,7 @@ project("spring-context") {
 		optional("javax.money:money-api:1.0.1")
 		optional("org.eclipse.persistence:javax.persistence:2.0.0")
 		optional("javax.validation:validation-api:1.0.0.GA")
+		//---*编译请打开这个注释*
 		optional("org.hibernate:hibernate-validator:${hibval4Version}")
 		optional("joda-time:joda-time:${jodaVersion}")
 		optional("org.aspectj:aspectjweaver:${aspectjVersion}")
@@ -898,8 +899,8 @@ project("spring-webmvc") {
 		//testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
 		//	exclude group: "javax.servlet", module: "javax.servlet"
 		//}
+		//testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
 		testCompile("javax.validation:validation-api:1.0.0.GA")
-		testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
 		testCompile("org.apache.httpcomponents:httpclient:${httpclientVersion}")
 		testCompile("commons-fileupload:commons-fileupload:${fileuploadVersion}")
 		testCompile("commons-io:commons-io:1.4")
