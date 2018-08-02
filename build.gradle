@@ -395,7 +395,7 @@ project("spring-beans") {
 		compile(files(project(":spring-core").cglibRepackJar))
 		optional("javax.inject:javax.inject:1")
 		// ---*编译请打开这个注释*
-		optional("javax.el:javax.el-api:2.2.5")//与tai 框架冲突,要单独编译这个包要打个这个注释
+		//optional("javax.el:javax.el-api:2.2.5")//与tai 框架冲突,要单独编译这个包要打个这个注释
 		optional("org.yaml:snakeyaml:${snakeyamlVersion}")
 		testCompile("log4j:log4j:${log4jVersion}")
 		testCompile("org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}")
@@ -706,7 +706,7 @@ project("spring-web") {
 		optional("javax.servlet.jsp:javax.servlet.jsp-api:2.2.1")
 		optional("javax.portlet:portlet-api:2.0")
 		// ---*编译请打开这个注释*
-		optional("javax.el:javax.el-api:2.2.5")
+		//optional("javax.el:javax.el-api:2.2.5")
 		optional("javax.faces:javax.faces-api:2.2")
 		optional("javax.validation:validation-api:1.0.0.GA")
 		optional("org.codehaus.groovy:groovy-all:${groovyVersion}")
@@ -722,12 +722,12 @@ project("spring-web") {
 		optional("com.google.code.gson:gson:${gsonVersion}")
 		optional("com.rometools:rome:${romeVersion}")
 		// ---*编译请打开这个注释*
-		optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet-api"
-		}
-		optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet-api"
-		}
+		//optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet-api"
+		//}
+		//optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet-api"
+		//}
 		optional("log4j:log4j:${log4jVersion}")
 		optional("com.google.protobuf:protobuf-java:2.6.1")
 		optional("com.googlecode.protobuf-java-format:protobuf-java-format:1.4")
@@ -735,7 +735,7 @@ project("spring-web") {
 		testCompile(project(":spring-context-support"))  // for JafMediaTypeFactory
 		testCompile("xmlunit:xmlunit:${xmlunitVersion}")
 		// ---*编译请打开这个注释*
-		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.skyscreamer:jsonassert:1.4.0")
 		testCompile("org.apache.taglibs:taglibs-standard-jstlel:1.2.1") {
 			exclude group: "org.apache.taglibs", module: "taglibs-standard-spec"
@@ -856,7 +856,7 @@ project("spring-webmvc") {
 		optional("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.8.11")
 		optional("com.rometools:rome:${romeVersion}")
 		//---*编译请打开这个注释*-
-		optional("javax.el:javax.el-api:2.2.5")
+		//optional("javax.el:javax.el-api:2.2.5")
 		
 		optional("org.apache.tiles:tiles-api:${tiles3Version}")
 		optional("org.apache.tiles:tiles-core:${tiles3Version}") {
@@ -886,20 +886,20 @@ project("spring-webmvc") {
 			exclude group: "xerces", module: "xercesImpl"
 		}
 		//---*编译请打开这个注释*-
-		testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet"
-		}
-		testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-			exclude group: "javax.servlet", module: "javax.servlet"
-		}
-		testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
+		//testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet"
+		//}
+		//testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+		//	exclude group: "javax.servlet", module: "javax.servlet"
+		//}
+		//testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
 		testCompile("javax.validation:validation-api:1.0.0.GA")
 		testCompile("org.apache.httpcomponents:httpclient:${httpclientVersion}")
 		testCompile("commons-fileupload:commons-fileupload:${fileuploadVersion}")
 		testCompile("commons-io:commons-io:1.4")
 		testCompile("joda-time:joda-time:${jodaVersion}")
 		//---*编译请打开这个注释*-
-		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.mozilla:rhino:1.7.7.2")
 		testRuntime("org.jruby:jruby:${jrubyVersion}")
 		testRuntime("org.python:jython-standalone:2.5.3")
