@@ -19,11 +19,6 @@ plugins {
 	id "org.sonarqube" version "1.1"
 }
 
-repositories {
-   mavenLocal()
-}
-
-//全局变量
 ext {
 	linkHomepage = 'https://projects.spring.io/spring-framework'
 	linkCi = 'https://build.spring.io/browse/SPR'
@@ -122,8 +117,8 @@ configure(allprojects) { project ->
 
 	//编译jdk版本
 	compileJava {
-		sourceCompatibility = 1.8
-		targetCompatibility = 1.8
+		sourceCompatibility = 1.6
+		targetCompatibility = 1.6
 		options.encoding = 'UTF-8'
 	}
 
@@ -400,7 +395,7 @@ project("spring-beans") {
 		compile(files(project(":spring-core").cglibRepackJar))
 		optional("javax.inject:javax.inject:1")
 		// ---*编译请打开这个注释*
-		//optional("javax.el:javax.el-api:2.2.5")//与tai 框架冲突,要单独编译这个包要打个这个注释
+		optional("javax.el:javax.el-api:2.2.5")//与tai 框架冲突,要单独编译这个包要打个这个注释
 		optional("org.yaml:snakeyaml:${snakeyamlVersion}")
 		testCompile("log4j:log4j:${log4jVersion}")
 		testCompile("org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}")
@@ -412,7 +407,6 @@ project("spring-beans-groovy") {
 
 	merge.into = project(":spring-beans")
 	apply plugin: "groovy"
-	apply plugin: "maven"
 
 	dependencies {
 		compile(project(":spring-core"))
@@ -430,8 +424,8 @@ project("spring-beans-groovy") {
 	}
 
 	compileGroovy {
-		sourceCompatibility = 1.8
-		targetCompatibility = 1.8
+		sourceCompatibility = 1.6
+		targetCompatibility = 1.6
 	}
 }
 //面向切面aop
@@ -493,13 +487,12 @@ project("spring-context") {
 	dependencies {
 		compile(project(":spring-aop"))
 		compile(project(":spring-beans"))
-		compile(project(":spring-beans-groovy"))
 		compile(project(":spring-core"))
 		compile(project(":spring-expression"))
 		compile(files(project(":spring-core").cglibRepackJar))
-		optional("javax.ejb:ejb-api:${ejbVersion}")// 原来脚本没有这个依赖，是在哪里承继了？
 		optional(project(":spring-instrument"))
 		optional("javax.inject:javax.inject:1")
+		optional("javax.ejb:ejb-api:${ejbVersion}")
 		optional("javax.enterprise.concurrent:javax.enterprise.concurrent-api:1.0")
 		optional("javax.money:money-api:1.0.1")
 		optional("org.eclipse.persistence:javax.persistence:2.0.0")
@@ -713,7 +706,7 @@ project("spring-web") {
 		optional("javax.servlet.jsp:javax.servlet.jsp-api:2.2.1")
 		optional("javax.portlet:portlet-api:2.0")
 		// ---*编译请打开这个注释*
-		//optional("javax.el:javax.el-api:2.2.5")
+		optional("javax.el:javax.el-api:2.2.5")
 		optional("javax.faces:javax.faces-api:2.2")
 		optional("javax.validation:validation-api:1.0.0.GA")
 		optional("org.codehaus.groovy:groovy-all:${groovyVersion}")
@@ -729,12 +722,12 @@ project("spring-web") {
 		optional("com.google.code.gson:gson:${gsonVersion}")
 		optional("com.rometools:rome:${romeVersion}")
 		// ---*编译请打开这个注释*
-		//optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-		//	exclude group: "javax.servlet", module: "javax.servlet-api"
-		//}
-		//optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-		//	exclude group: "javax.servlet", module: "javax.servlet-api"
-		//}
+		optional("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+			exclude group: "javax.servlet", module: "javax.servlet-api"
+		}
+		optional("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+			exclude group: "javax.servlet", module: "javax.servlet-api"
+		}
 		optional("log4j:log4j:${log4jVersion}")
 		optional("com.google.protobuf:protobuf-java:2.6.1")
 		optional("com.googlecode.protobuf-java-format:protobuf-java-format:1.4")
@@ -742,7 +735,7 @@ project("spring-web") {
 		testCompile(project(":spring-context-support"))  // for JafMediaTypeFactory
 		testCompile("xmlunit:xmlunit:${xmlunitVersion}")
 		// ---*编译请打开这个注释*
-		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.skyscreamer:jsonassert:1.4.0")
 		testCompile("org.apache.taglibs:taglibs-standard-jstlel:1.2.1") {
 			exclude group: "org.apache.taglibs", module: "taglibs-standard-spec"
@@ -750,7 +743,7 @@ project("spring-web") {
 		testCompile("com.fasterxml.jackson.datatype:jackson-datatype-joda:2.8.11")
 		testCompile("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.8.11")
 		testCompile("com.fasterxml.jackson.module:jackson-module-kotlin:${jackson2Version}")
-    	testCompile("com.squareup.okhttp3:mockwebserver:${okhttp3Version}")
+		testCompile("com.squareup.okhttp3:mockwebserver:${okhttp3Version}")
 		testRuntime("com.sun.mail:javax.mail:${javamailVersion}")
 	}
 }
@@ -863,7 +856,7 @@ project("spring-webmvc") {
 		optional("com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.8.11")
 		optional("com.rometools:rome:${romeVersion}")
 		//---*编译请打开这个注释*-
-		//optional("javax.el:javax.el-api:2.2.5")
+		optional("javax.el:javax.el-api:2.2.5")
 		
 		optional("org.apache.tiles:tiles-api:${tiles3Version}")
 		optional("org.apache.tiles:tiles-core:${tiles3Version}") {
@@ -893,20 +886,20 @@ project("spring-webmvc") {
 			exclude group: "xerces", module: "xercesImpl"
 		}
 		//---*编译请打开这个注释*-
-		//testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
-		//	exclude group: "javax.servlet", module: "javax.servlet"
-		//}
-		//testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
-		//	exclude group: "javax.servlet", module: "javax.servlet"
-		//}
-		//testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
+		testCompile("org.eclipse.jetty:jetty-servlet:${jettyVersion}") {
+			exclude group: "javax.servlet", module: "javax.servlet"
+		}
+		testCompile("org.eclipse.jetty:jetty-server:${jettyVersion}") {
+			exclude group: "javax.servlet", module: "javax.servlet"
+		}
+		testCompile("org.hibernate:hibernate-validator:${hibval4Version}")
 		testCompile("javax.validation:validation-api:1.0.0.GA")
 		testCompile("org.apache.httpcomponents:httpclient:${httpclientVersion}")
 		testCompile("commons-fileupload:commons-fileupload:${fileuploadVersion}")
 		testCompile("commons-io:commons-io:1.4")
 		testCompile("joda-time:joda-time:${jodaVersion}")
 		//---*编译请打开这个注释*-
-		//testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
+		testCompile("org.slf4j:slf4j-jcl:${slf4jVersion}")
 		testCompile("org.mozilla:rhino:1.7.7.2")
 		testRuntime("org.jruby:jruby:${jrubyVersion}")
 		testRuntime("org.python:jython-standalone:2.5.3")
